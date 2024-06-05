@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include directories for core module headers
 include_directories(core/inc)
 
+# Add Unity as a submodule
+add_subdirectory(Unity)
+
 # Define options for selecting the target platform
 option(PLATFORM_UNIX "Build for Unix platforms (Linux, macOS)" OFF)
 option(PLATFORM_MAC "Build for macOS" OFF)
@@ -54,14 +57,11 @@ set(SOURCES main.cpp)
 # Add all .cpp files from core/src directory
 file(GLOB CORE_SRC_FILES "core/src/*.cpp")
 
-# Add Unity library
-add_subdirectory(path/to/Unity)
-
 # Add an executable target for the main application
 add_executable(${PROJECT_NAME} ${SOURCES} ${CORE_SRC_FILES})
 
 # Link Unity library to the main executable
-target_link_libraries(${PROJECT_NAME} Unity)
+target_link_libraries(${PROJECT_NAME} unity)
 
 # Find the Qt6 package
 find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
@@ -76,7 +76,7 @@ add_executable(5thDTest 5thDTest/test_network.c)
 target_include_directories(5thDTest PRIVATE core/inc)
 
 # Link Unity library to the test executable
-target_link_libraries(5thDTest Unity)
+target_link_libraries(5thDTest unity)
 
 # Link the core module to the test executable
 target_link_libraries(5thDTest thread_pool)

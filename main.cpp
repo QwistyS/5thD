@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     // Main window
     QWidget mainWindow;
     QVBoxLayout layout(&mainWindow);
-    mainWindow.setWindowTitle("Telegram Replica");
+    mainWindow.setWindowTitle("5thD Chat");
 
     // Chat window
     QTextEdit chatWindow;
