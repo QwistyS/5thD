@@ -4,9 +4,18 @@
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QPushButton>
+#include "peer.h"
+
+
+
+#define DEFAULT_USER "Retard Moronovich: "
 
 int main(int argc, char *argv[])
 {
+    Peer peer;
+    peer.connect("127.0.0.1", 5555);
+    // Additional logic as needed
+    
     QApplication a(argc, argv);
 
     // Main window
@@ -31,7 +40,7 @@ int main(int argc, char *argv[])
     QObject::connect(&sendButton, &QPushButton::clicked, [&](){
         QString message = inputBox.text();
         if (!message.isEmpty()) {
-            chatWindow.append("User 1: " + message);
+            chatWindow.append(DEFAULT_USER + message);
             inputBox.clear();
         }
     });
