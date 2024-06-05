@@ -21,5 +21,8 @@ To use 5thD, follow these steps:
 1. Clone the repository:
    ```bash
    git clone git@github.com:QwistyS/5thD.git
-   git submodule update --init --recursive
-   ```sh
+   ```
+
+   ```bash
+      git submodule update --init --recursive
+   ```
