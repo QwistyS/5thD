@@ -24,5 +24,5 @@ To use 5thD, follow these steps:
    ```
 
    ```bash
-      git submodule update --init --recursive
+   git submodule update --init --recursive
    ```
