@@ -20,4 +20,6 @@ To use 5thD, follow these steps:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your_username/5thD.git
+   git clone git@github.com:QwistyS/5thD.git
+   git submodule update --init --recursive
+   ```sh
