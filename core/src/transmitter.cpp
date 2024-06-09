@@ -1,6 +1,6 @@
 #include "transmitter.h"
-#include "qwistys_macro.h"
 #include "lggr.h"
+#include "qwistys_macro.h"
 
 #include <zmq.h>
 
@@ -8,23 +8,23 @@ Transmiter::~Transmiter() {
     close();
 }
 
-void Transmiter::connect(const std::string &ip, int port) {
+void Transmiter::connect(const std::string& ip, int port) {
     _socket = zmq_socket(_ctx->get_context(), ZMQ_REQ);
     std::string addr = "tcp://" + ip + ":" + std::to_string(port);
     DEBUG("Connecting to addr {}", addr);
 
-    if(zmq_connect(_socket, addr.c_str()) == 0) {
+    if (zmq_connect(_socket, addr.c_str()) == 0) {
         DEBUG("Connected to {}", addr);
     } else {
         ERROR("Fail to connect to {}", addr);
-    } 
+    }
 }
 
 void Transmiter::close() {
     zmq_close(_socket);
 }
 
-void Transmiter::send(void *data) {
+void Transmiter::send(void* data) {
 }
 
 bool Transmiter::is_connected() {

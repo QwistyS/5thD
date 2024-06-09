@@ -1,5 +1,3 @@
-// thread_pool.cpp
-
 #include "thread_pool.h"
 
 ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
@@ -33,7 +31,7 @@ ThreadPool::~ThreadPool() {
     }
 }
 
-template<class F, class... Args>
+template <class F, class... Args>
 void ThreadPool::enqueue(F&& f, Args&&... args) {
     {
         std::unique_lock<std::mutex> lock(queueMutex);

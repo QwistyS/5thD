@@ -6,14 +6,12 @@ extern "C" {
 #endif
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
 
-
-#define __NOP (void)0
+#define __NOP (void) 0
 #define QWISTYS_ZERO 0
 
 #define QWISTYS_NRM "\x1B[0m"
@@ -33,9 +31,9 @@ extern "C" {
 #define QWISTYS_TAG_SE "SET EQUAL"
 #define QWISTYS_TAG_NULL "NULL VALUE"
 
-#define QWISTYS_MSG(tag, msg)                                                  \
-    fprintf(stderr, "%s%s %s%s:%s:%d %s%s\n%s", QWISTYS_BLU, QWISTYS_MACRONAME, QWISTYS_MAG, \
-            __FILE__, __func__, __LINE__, tag, msg, QWISTYS_NRM);
+#define QWISTYS_MSG(tag, msg)                                                                                    \
+    fprintf(stderr, "%s%s %s%s:%s:%d %s%s\n%s", QWISTYS_BLU, QWISTYS_MACRONAME, QWISTYS_MAG, __FILE__, __func__, \
+            __LINE__, tag, msg, QWISTYS_NRM);
 
 #define QWISTYS_HALT(tag)                   \
     {                                       \
@@ -47,20 +45,26 @@ extern "C" {
     if (x == NULL)        \
     QWISTYS_HALT(QWISTYS_TAG_NULL)
 
-#define QWISTYS_DEFER(x) do { result = (x); goto defer; } while(0)
+#define QWISTYS_DEFER(x) \
+    do {                 \
+        result = (x);    \
+        goto defer;      \
+    } while (0)
 
-#define QWISTYS_MALLOC_NEW(call, c)  call; c++;
-#define QWISTYS_MIN(a,b) (((a)<(b))?(a):(b))
+#define QWISTYS_MALLOC_NEW(call, c) \
+    call;                           \
+    c++;
+#define QWISTYS_MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 #define QWISTYS_TODO_ENABLE
 #ifdef QWISTYS_TODO_ENABLE
-#ifdef QWISTYS_TODO_FORCE
-#define QWISTYS_TODO_MSG(msg) QWISTYS_HALT(msg)
+#    ifdef QWISTYS_TODO_FORCE
+#        define QWISTYS_TODO_MSG(msg) QWISTYS_HALT(msg)
+#    else
+#        define QWISTYS_TODO_MSG(msg) QWISTYS_MSG(QWISTYS_TAG_TODO, msg)
+#    endif /* QWISTYS_TODO_FORCE */
 #else
-#define QWISTYS_TODO_MSG(msg) QWISTYS_MSG(QWISTYS_TAG_TODO, msg)
-#endif /* QWISTYS_TODO_FORCE */
-#else
-#define QWISTYS_TODO_MSG(msg)
+#    define QWISTYS_TODO_MSG(msg)
 #endif /*QWISTYS_TODO*/
 
 #define QWISTYS_UNIMPLEMENTED()                     \
@@ -90,8 +94,7 @@ extern "C" {
     } while (0)
 
 #define QWISTYS_ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
-#define QWISTYS_ARRAY_ACCESS(arraym, index) \
-    (assert(index >= 0), assert(index < QWISTYS_ARRAY_LEN(array)), array[index])
+#define QWISTYS_ARRAY_ACCESS(arraym, index) (assert(index >= 0), assert(index < QWISTYS_ARRAY_LEN(array)), array[index])
 
 #ifdef __cplusplus
 }

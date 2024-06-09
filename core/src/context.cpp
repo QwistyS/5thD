@@ -1,5 +1,5 @@
-#include <zmq.h>
 #include "context.h"
+#include <zmq.h>
 #include "lggr.h"
 
 Context::~Context() {

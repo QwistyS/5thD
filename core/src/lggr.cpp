@@ -16,5 +16,4 @@ void Log::init() {
 
 std::shared_ptr<spdlog::logger> Log::get_logger() {
     return _logger;
-
 }

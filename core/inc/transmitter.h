@@ -21,6 +21,7 @@ public:
     void close();
     void send(void* data);
     bool is_connected();
+
 private:
     IContext* _ctx;
     void* _socket;
