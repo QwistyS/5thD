@@ -4,7 +4,7 @@
 #include "qwistys_macro.h"
 
 Peer::Peer(int port) {
-    DEBUG("Init peer");
+    DEBUG("CTOR Peer");
 }
 
 Peer::~Peer() {

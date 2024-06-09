@@ -7,10 +7,18 @@
 
 Transmitter::~Transmitter() {
     close();
+    DEBUG("Transmitter CTOR socket cleared");
 }
 
 void Transmitter::connect(const std::string& ip, int port) {
     _socket = zmq_socket(_ctx->get_context(), ZMQ_REQ);
+    if (_socket == NULL) {
+        ERROR("ZMQ Fail to create socket");
+        QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
+    } else {
+        DEBUG("Socket created successfully");
+    }
+
     std::string addr = "tcp://" + ip + ":" + std::to_string(port);
     DEBUG("Connecting to addr {}", addr);
 
@@ -24,10 +32,15 @@ void Transmitter::connect(const std::string& ip, int port) {
 }
 
 void Transmitter::close() {
-    zmq_close(_socket);
+    if (zmq_close(_socket) == Errors::OK) {
+        DEBUG("ZMQ closed socket");
+    } else {
+        ERROR("ZMQ Fail to close socket");
+    }
 }
 
 void Transmitter::send(void* data) {
+    QWISTYS_UNIMPLEMENTED();
 }
 
 bool Transmitter::is_connected() {
