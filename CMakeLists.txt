@@ -12,7 +12,8 @@ include_directories(core/inc)
 add_subdirectory(cppzmq)
 # Add Unity as a submodule
 add_subdirectory(Unity)
-
+add_subdirectory(miniupnpc)
+include_directories(miniupnpc/include)
 # Find spdlog package
 add_subdirectory(spdlog)
 # Find OpenSSl
@@ -39,5 +40,6 @@ target_link_libraries(${PROJECT_NAME}
     spdlog::spdlog
     cppzmq
     OpenSSL::SSL
+    miniupnpc::miniupnpc
 )
 

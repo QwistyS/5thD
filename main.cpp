@@ -4,18 +4,21 @@
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QPushButton>
+#include <memory>
 #include "peer.h"
 
-
+#include <spdlog/spdlog.h>
+#include <iostream>
 
 #define DEFAULT_USER "Retard Moronovich: "
 
 int main(int argc, char *argv[])
 {
-    Peer peer;
+    Peer peer(5555);
     peer.connect("127.0.0.1", 5555);
-    // Additional logic as needed
-    
+    return 0;
+
+
     QApplication a(argc, argv);
 
     // Main window
