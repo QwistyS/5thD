@@ -1,14 +1,11 @@
 #include <zmq.h>
 #include "context.h"
-#include "logger.h"
-
-auto context_log = logger5thd::get_logger("network");
-#define DEBUG(x, ...) context_log->debug(x, ##__VA_ARGS__)
+#include "lggr.h"
 
 Context::~Context() {
     if (_context) {
         if (zmq_ctx_destroy(_context) != 0) {
-            context_log->error("ZMQ FAIL clear ctx");
+            ERROR("ZMQ FAIL clear ctx");
         } else {
             DEBUG("ZMQ clear ctx success");
         }
@@ -28,6 +25,6 @@ void Context::set_context() {
     if (_context) {
         DEBUG("ZMQ Context created success");
     } else {
-        context_log->error("ZMQ Context fail to create");
+        ERROR("ZMQ Context fail to create");
     }
 }

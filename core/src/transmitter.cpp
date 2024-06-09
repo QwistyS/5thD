@@ -1,11 +1,8 @@
 #include "transmitter.h"
 #include "qwistys_macro.h"
-#include "logger.h"
+#include "lggr.h"
 
 #include <zmq.h>
-
-auto transmitte_log = logger5thd::get_logger("network");
-#define DEBUG(x, ...) transmitte_log->debug(x, ##__VA_ARGS__)
 
 Transmiter::~Transmiter() {
     close();
@@ -19,7 +16,7 @@ void Transmiter::connect(const std::string &ip, int port) {
     if(zmq_connect(_socket, addr.c_str()) == 0) {
         DEBUG("Connected to {}", addr);
     } else {
-        transmitte_log->error("Fail to connect to {}", addr);
+        ERROR("Fail to connect to {}", addr);
     } 
 }
 
@@ -40,7 +37,7 @@ bool Transmiter::is_connected() {
         DEBUG("Msg init success");
         ret = true;
     } else {
-        transmitte_log->error("Msg init fail");
+        ERROR("Msg init fail");
     }
 
     // _socket->send(request, zmq::send_flags::none);

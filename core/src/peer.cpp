@@ -1,12 +1,10 @@
 #include "peer.h"
 #include "context.h"
-#include "logger.h"
+#include "lggr.h"
 #include "qwistys_macro.h"
 
-auto peer_log = logger5thd::get_logger("network");
-
 Peer::Peer(int port) {
-    peer_log->debug("Init peer");
+    DEBUG("Init peer");
 }
 
 Peer::~Peer() {
@@ -14,4 +12,8 @@ Peer::~Peer() {
 }
 
 void Peer::connect(const std::string& ip, int port) {
+    Transmiter conn(&_ctx_out);
+
+    conn.connect("address", 4444);
+    _transmitters.push_back(std::move(conn));
 }

@@ -1,7 +1,7 @@
 #ifndef PEER_H
 #define PEER_H
 
-#include <list>
+#include <vector>
 #include "transmitter.h"
 #include "context.h"
 
@@ -11,8 +11,9 @@ public:
     ~Peer();
     void connect(const std::string& ip, int port);
 private:
-    std::list<Transmiter> _transmitters;
-    std::unique_ptr<IContext> _ctx_out;
+    std::vector<Transmiter> _transmitters;
+    Context _ctx_out;
+    Context _ctx_in;
 };
 
 #endif // PEER_H

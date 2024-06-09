@@ -9,6 +9,7 @@ set(THIRDP "third_parties/")
 
 # Include directories for core module headers
 include_directories(core/inc)
+file(GLOB CORE_SRC_FILES "core/src/*.cpp")
 
 # Set libzmq to build static libraries
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
@@ -21,7 +22,6 @@ set(ENABLE_CZMQ_BUILD_TESTS OFF CACHE BOOL "Build CZMQ tests" FORCE)
 set(ENABLE_TESTS OFF CACHE BOOL "Build ZeroMQ tests" FORCE)
 set(WITH_DOCS OFF CACHE BOOL "Build documentation" FORCE)
 # Add libzmq
-file(GLOB CORE_SRC_FILES "core/src/*.cpp")
 add_subdirectory(${THIRDP}libzmq)
 include_directories(${THIRDP}libzmq/include)
 
