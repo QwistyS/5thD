@@ -3,20 +3,21 @@
 
 #include <string>
 #include "context.h"
+#include "error_handler.h"
 
-class ITransmmiter {
+class ITransmitter {
 public:
-    virtual ~ITransmmiter() = default;
+    virtual ~ITransmitter() = default;
     virtual void connect(const std::string& ip, int port) = 0;
     virtual void close() = 0;
     virtual void send(void* data) = 0;
     virtual bool is_connected() = 0;
 };
 
-class Transmiter : public ITransmmiter {
+class Transmitter : public ITransmitter {
 public:
-    virtual ~Transmiter();
-    Transmiter(IContext* ctx) : _ctx(ctx) {};
+    virtual ~Transmitter();
+    Transmitter(IContext* ctx, IError* error) : _ctx(ctx), _error_handler(error) {};
     void connect(const std::string& ip, int port);
     void close();
     void send(void* data);
@@ -24,6 +25,7 @@ public:
 
 private:
     IContext* _ctx;
+    IError* _error_handler;
     void* _socket;
 };
 

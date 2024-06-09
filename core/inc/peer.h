@@ -12,9 +12,10 @@ public:
     void connect(const std::string& ip, int port);
 
 private:
-    std::vector<Transmiter> _transmitters;
+    std::vector<Transmitter> _transmitters;
     Context _ctx_out;
     Context _ctx_in;
+    NetworkError _errors;
 };
 
 #endif  // PEER_H

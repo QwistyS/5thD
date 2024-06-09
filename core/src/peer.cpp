@@ -12,7 +12,7 @@ Peer::~Peer() {
 }
 
 void Peer::connect(const std::string& ip, int port) {
-    Transmiter conn(&_ctx_out);
+    Transmitter conn(&_ctx_out, &_errors);
 
     conn.connect("address", 4444);
     _transmitters.push_back(std::move(conn));
