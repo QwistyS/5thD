@@ -6,7 +6,7 @@
 
 class Peer {
 public:
-    Peer(int port);
+    Peer(int port) : _ctx_out(&_errors), _ctx_in(&_errors) {};
     ~Peer();
     void connect(const std::string& ip, int port);
 

@@ -18,7 +18,6 @@ a single peer.
 
 `ITransmitter` - Implementation of connection [ITransmitter doc](itransmitter.md)
 
-
 # Attributes
 `ITransmitterContext* _ctx` - Pointer to the context interface.
 

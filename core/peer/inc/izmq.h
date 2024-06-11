@@ -9,13 +9,14 @@
 class ZMQWContext : public ITransmitterContext {
 public:
     virtual ~ZMQWContext();
-    ZMQWContext() : _context(nullptr) { set_context(); };
+    ZMQWContext(IError *error) : _context(nullptr),  _error(error) { set_context(); };
     void* get_context();
 
 private:
     void close();
     void set_context();
     void* _context;
+    IError* _error;
 };
 
 #endif  // IZMQ_H

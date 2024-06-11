@@ -36,7 +36,9 @@ void Transmitter::close() {
         DEBUG("ZMQ closed socket");
     } else {
         ERROR("ZMQ Fail to close socket");
+        _error_handler->handle(Errors::SOCKET_CLOSE_FAIL);
     }
+    _socket = nullptr;
 }
 
 void Transmitter::send(void* data) {
