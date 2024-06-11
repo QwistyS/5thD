@@ -12,4 +12,4 @@ enum Errors {
     TOTAL
 };
 
-#endif // ERRORS_H
+#endif  // ERRORS_H

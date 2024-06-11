@@ -6,8 +6,8 @@
 #include <zmq.h>
 
 Transmitter::~Transmitter() {
-    close();
-    DEBUG("Transmitter CTOR socket cleared");
+    if (_socket)
+        close();
 }
 
 void Transmitter::connect(const std::string& ip, int port) {
