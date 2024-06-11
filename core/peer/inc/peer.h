@@ -2,8 +2,7 @@
 #define PEER_H
 
 #include <vector>
-#include "context.h"
-#include "transmitter.h"
+#include "izmq.h"
 
 class Peer {
 public:
@@ -13,8 +12,8 @@ public:
 
 private:
     std::vector<Transmitter> _transmitters;
-    Context _ctx_out;
-    Context _ctx_in;
+    ZMQWContext _ctx_out;
+    ZMQWContext _ctx_in;
     NetworkError _errors;
 };
 

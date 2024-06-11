@@ -1,8 +1,10 @@
-#include "context.h"
-#include <zmq.h>
-#include "lggr.h"
+#include "izmq.h"
+#include "5thdlogger.h"
+#include "5thderror_handler.h"
 
-Context::~Context() {
+#include <zmq.h>
+
+ZMQWContext::~ZMQWContext() {
     if (_context) {
         if (zmq_ctx_destroy(_context) != 0) {
             ERROR("ZMQ FAIL clear ctx");
@@ -12,15 +14,15 @@ Context::~Context() {
     }
 }
 
-void* Context::get_context() {
+void* ZMQWContext::get_context() {
     return _context;
 }
 
-void Context::close() {
+void ZMQWContext::close() {
     zmq_ctx_destroy(_context);
 }
 
-void Context::set_context() {
+void ZMQWContext::set_context() {
     _context = zmq_ctx_new();
     if (_context) {
         DEBUG("ZMQ Context created success");

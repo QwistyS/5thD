@@ -1,6 +1,6 @@
 #include "transmitter.h"
-#include "errors.h"
-#include "lggr.h"
+#include "5thderrors.h"
+#include "5thdlogger.h"
 #include "qwistys_macro.h"
 
 #include <zmq.h>

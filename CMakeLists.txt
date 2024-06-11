@@ -8,8 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THIRDP "third_parties/")
 
 # Include directories for core module headers
-include_directories(core/inc)
-file(GLOB CORE_SRC_FILES "core/src/*.cpp")
+include_directories(core/
+    core/peer/inc
+)
+file(GLOB CORE_SRC_FILES 
+    "core/*.cpp"
+    "core/peer/src/*.cpp"
+)
 
 # Set libzmq to build static libraries
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)

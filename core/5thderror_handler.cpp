@@ -1,6 +1,6 @@
-#include "error_handler.h"
 #include "qwistys_macro.h"
-#include "lggr.h"
+#include "5thderror_handler.h"
+#include "5thdlogger.h"
 
 
 NetworkError::NetworkError() {

@@ -5,6 +5,7 @@ enum Errors {
     OK = 0,
     SOCKET_INIT_FAIL,
     SEND_HEARTBEAT_FAIL,
+    MONKEY,
     TOTAL
 };
 

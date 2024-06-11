@@ -1,6 +1,5 @@
+#include "5thdlogger.h"
 #include "peer.h"
-#include "context.h"
-#include "lggr.h"
 #include "qwistys_macro.h"
 
 Peer::Peer(int port) {
