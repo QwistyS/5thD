@@ -9,6 +9,7 @@ public:
     Peer(int port) : _ctx_out(&_errors), _ctx_in(&_errors) {};
     ~Peer();
     void connect(const std::string& ip, int port);
+    void send(void *data, size_t data_length);
 
 private:
     std::vector<Transmitter> _transmitters;

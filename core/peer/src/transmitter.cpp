@@ -11,10 +11,10 @@ Transmitter::~Transmitter() {
 }
 
 void Transmitter::connect(const std::string& ip, int port) {
-    _socket = zmq_socket(_ctx->get_context(), ZMQ_REQ);
+    QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
+    _socket = zmq_socket(_context->get_context(), ZMQ_REQ);
     if (_socket == NULL) {
         ERROR("ZMQ Fail to create socket");
-        QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
     } else {
         DEBUG("Socket created successfully");
     }
@@ -23,9 +23,15 @@ void Transmitter::connect(const std::string& ip, int port) {
     DEBUG("Connecting to addr {}", addr);
 
     if (zmq_connect(_socket, addr.c_str()) == Errors::OK) {
-        DEBUG("Connected to {}", addr);
+        if (is_connected()) {
+            DEBUG("Connected to {}", addr);
+        } else {
+            DEBUG("There is an issue with connection to {}", addr);
+        }
+
     } else {
         ERROR("Fail to connect to {}", addr);
+        zmq_close(_socket);
         _socket = nullptr;
         _error_handler->handle(Errors::SOCKET_INIT_FAIL);
     }
@@ -35,17 +41,44 @@ void Transmitter::close() {
     if (zmq_close(_socket) == Errors::OK) {
         DEBUG("ZMQ closed socket");
     } else {
-        ERROR("ZMQ Fail to close socket");
+        int errnum = zmq_errno();
+        ERROR("ZMQ Fail to close socket with error {}", zmq_strerror(errnum));
         _error_handler->handle(Errors::SOCKET_CLOSE_FAIL);
     }
     _socket = nullptr;
 }
 
-void Transmitter::send(void* data) {
+void Transmitter::send(void* data, size_t data_length) const {
     QWISTYS_UNIMPLEMENTED();
 }
 
-bool Transmitter::is_connected() {
+void Transmitter::send_stream(void* data, size_t data_length, int chunk_size) {
+    uint8_t* pdata = static_cast<uint8_t*>(data);
+    int flags = 0;
+
+    while (data_length > 0) {
+        size_t current_chunk_size = (data_length < chunk_size) ? data_length : chunk_size;
+        flags = (data_length > current_chunk_size) ? ZMQ_SNDMORE : 0;
+
+        if (zmq_send(_socket, pdata, current_chunk_size, flags) != Errors::OK) {
+            pdata = nullptr;
+            ERROR("ZMQ failed to send data chunk");
+            _error_handler->handle(Errors::SOCKET_SEND_FAIL);
+            return;
+        }
+
+        pdata += current_chunk_size;
+        data_length -= current_chunk_size;
+    }
+
+    // Send an empty message to signify the end
+    if (zmq_send(_socket, "", 0, 0) < 0) {
+        ERROR("ZMQ failed to send final empty message");
+        _error_handler->handle(Errors::SOCKET_SEND_FAIL);
+    }
+}
+
+bool Transmitter::is_connected() const {
     zmq_msg_t request;
     zmq_msg_t reply;
     bool ret = false;

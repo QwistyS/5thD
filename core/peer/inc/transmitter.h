@@ -1,13 +1,12 @@
-#ifndef TRANSMITTER_H
-#define TRANSMITTER_H
+#ifndef TRANSMITTER_H_
+#define TRANSMITTER_H_
 
 #include "5thderror_handler.h"
 
 /**
- * @brief Transmitter common interface for attached network library
- * context.
- * @note Currently we uze ZMQ but need to check libp2p, also useful for 
- * test mock
+ * @brief Interface for network library context used by the transmitter.
+ * @note Currently we use ZMQ but need to check libp2p, also useful for
+ * testing mocks.
  */
 class ITransmitterContext {
 public:
@@ -16,66 +15,70 @@ public:
 };
 
 /**
- * @brief Transmitter common interface for attached network library
- * context.
- * @note Currently we uze ZMQ but need to check libp2p, also useful for 
- * test mock
+ * @brief Interface for the transmitter.
+ * @note Currently we use ZMQ but need to check libp2p, also useful for
+ * testing mocks.
  */
 class ITransmitter {
 public:
     virtual ~ITransmitter() = default;
     virtual void connect(const std::string& ip, int port) = 0;
     virtual void close() = 0;
-    virtual void send(void* data) = 0;
-    virtual bool is_connected() = 0;
+    virtual void send(void* data, size_t data_length) const = 0;
+    virtual bool is_connected() const = 0;
 };
 
 /**
- * @brief Transmitter class. Handles all outgoing connections
- * @note using dependency injection.
+ * @brief Transmitter class handles all outgoing connections using
+ * dependency injection.
  */
 class Transmitter : public ITransmitter {
 public:
     /**
-     * @brief DCTOR cleans all resources.
+     * @brief Destructor cleans all resources.
      */
     virtual ~Transmitter();
+
     /**
-     * @brief CTOR
+     * @brief Constructor
      */
-    Transmitter(ITransmitterContext* ctx, IError* error) : _ctx(ctx), _error_handler(error) {};
+    Transmitter(ITransmitterContext* ctx, IError* error)
+        : _context(ctx), _socket(nullptr), _error_handler(error) {}
+
     /**
-     * @brief connecting to a target
-     * @param ip IP v4 address as string
-     * @param port target port as int
-     * @note NOT checking if address provided as valid string 
-     *  for example "1234/122.0.1" still considered as valid ip
-     * 
-     * @return void Error handled by Error handler
+     * @brief Connects to a target IP and port.
+     * @param ip IP v4 address as string.
+     * @param port Target port as int.
+     * @note This method does not validate the IP address format.
      */
-    void connect(const std::string& ip, int port);
+    void connect(const std::string& ip, int port) override;
+
     /**
-     * @brief Closing active connection
-     * @note this method will reset _socket to nullptr
-     * @return void Error handled by Error handler
+     * @brief Closes the active connection.
+     * @note This method will reset _socket to nullptr.
      */
-    void close();
+    void close() override;
+
     /**
-     * @brief TBD
-     * @note UNIMPLEMENTED
+     * @brief Sends data through the active connection.
+     * @param data Pointer to data.
+     * @param data_length Size of the data in bytes.
+     * @note Currently unimplemented.
      */
-    void send(void* data);
+    void send(void* data, size_t data_length) const override;
+
     /**
-     * @brief checking if the connection is alive
-     * @return bool true on success false on fail
-     * @note Error handled by Error handler
+     * @brief Checks if the connection is alive.
+     * @return True if connected, false otherwise.
      */
-    bool is_connected();
+    bool is_connected() const override;
 
 private:
-    ITransmitterContext* _ctx;
+    ITransmitterContext* _context;
     IError* _error_handler;
     void* _socket;
+
+    void send_stream(void* data, size_t data_length, int chunk_size);
 };
 
-#endif  // TRANSMITTER_H
+#endif  // TRANSMITTER_H_
