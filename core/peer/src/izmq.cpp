@@ -28,6 +28,7 @@ void ZMQWContext::close() {
 void ZMQWContext::set_context() {
     _context = zmq_ctx_new();
     if (_context) {
+        zmq_ctx_set(_context, ZMQ_IO_THREADS, 2);
         DEBUG("ZMQ Context created success");
     } else {
         _context = nullptr;

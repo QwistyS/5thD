@@ -3,6 +3,8 @@
 
 #include "5thderror_handler.h"
 
+#define GENERIC_DATA "Heartbeat"
+
 /**
  * @brief Interface for network library context used by the transmitter.
  * @note Currently we use ZMQ but need to check libp2p, also useful for
@@ -25,7 +27,7 @@ public:
     virtual void connect(const std::string& ip, int port) = 0;
     virtual void close() = 0;
     virtual void send(void* data, size_t data_length) const = 0;
-    virtual bool is_connected() const = 0;
+    virtual bool req_data(const char* OP) const = 0;
 };
 
 /**
@@ -42,8 +44,8 @@ public:
     /**
      * @brief Constructor
      */
-    Transmitter(ITransmitterContext* ctx, IError* error)
-        : _context(ctx), _socket(nullptr), _error_handler(error) {}
+    Transmitter(ITransmitterContext* ctx, int socket_type, IError* error)
+        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error_handler(error) {}
 
     /**
      * @brief Connects to a target IP and port.
@@ -71,12 +73,13 @@ public:
      * @brief Checks if the connection is alive.
      * @return True if connected, false otherwise.
      */
-    bool is_connected() const override;
+    bool req_data(const char* OP) const override;
 
 private:
     ITransmitterContext* _context;
     IError* _error_handler;
     void* _socket;
+    int _socket_type;
 
     void send_stream(void* data, size_t data_length, int chunk_size);
 };
