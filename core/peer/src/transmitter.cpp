@@ -5,9 +5,36 @@
 
 #include <zmq.h>
 
+#define MESSAGES_MAX_AMOUNT 2
+
+static zmq_msg_t request[MESSAGES_MAX_AMOUNT];
+static zmq_msg_t replay[MESSAGES_MAX_AMOUNT];
+
 ZMQTransmitter::~ZMQTransmitter() {
+    _clear_buffers();
     if (_socket)
         close();
+}
+
+void ZMQTransmitter::_clear_buffers() {
+    for (int i = 0; i < MESSAGES_MAX_AMOUNT; i++) {
+        zmq_msg_close(&replay[i]);
+        zmq_msg_close(&request[i]);
+    }
+}
+
+void ZMQTransmitter::_init() {
+    QWISTYS_TODO_MSG("Create a normal way to handle buffers");
+    for (int i = 0; i < MESSAGES_MAX_AMOUNT; i++) {
+        zmq_msg_init(&replay[i]);
+        if (zmq_msg_init_size(&replay[i], strlen(GENERIC_DATA)) != Errors::OK) {
+            ERROR("FAIL to init message size");
+        }
+        zmq_msg_init(&request[i]);
+        if (zmq_msg_init_size(&request[i], strlen(GENERIC_DATA)) != Errors::OK) {
+            ERROR("FAIL to init message size");
+        }
+    }
 }
 
 void ZMQTransmitter::connect(const std::string& ip, int port) {
@@ -74,8 +101,6 @@ void ZMQTransmitter::send_stream(void* data, size_t data_length, int chunk_size)
 }
 
 bool ZMQTransmitter::req_data(const char* OP) const {
-    zmq_msg_t request;
-    zmq_msg_t reply;
     bool ret = false;
 
     if (_socket == nullptr) {
@@ -83,37 +108,23 @@ bool ZMQTransmitter::req_data(const char* OP) const {
         return ret;
     }
 
-    if (zmq_msg_init_size(&request, strlen(OP)) == 0) {
-        memcpy(zmq_msg_data(&request), OP, strlen(OP));
-        DEBUG("Msg init success");
+    memcpy(zmq_msg_data(&request[0]), OP, strlen(OP));
 
-        // Send the heartbeat message
-        if (zmq_msg_send(&request, _socket, 0) == strlen(OP)) {
-            DEBUG("Message {} {} sent", OP, strlen(OP));
+    if (zmq_msg_send(&request[0], _socket, 0) == strlen(OP)) {
+        DEBUG("Message {} {} sent", OP, strlen(OP));
 
-            // Initialize the reply message
-            if (zmq_msg_init(&reply) == Errors::OK) {
-                // Receive the reply
+        auto zmq_e = zmq_msg_recv(&replay[0], _socket, 0);
 
-                auto zmq_e = zmq_msg_recv(&reply, _socket, 0);
-
-                if (zmq_e != -1) {
-                    std::string reply_str(static_cast<char*>(zmq_msg_data(&reply)), zmq_msg_size(&reply));
-                    ret = (reply_str == "Alive");
-                    DEBUG("Received reply: {}", reply_str);
-                } else {
-                    ERROR("FAIL receive {}", zmq_strerror(zmq_e));
-                }
-                // Close the reply message to free allocated resources
-                zmq_msg_close(&reply);
-            }
+        if (zmq_e != -1) {
+            std::string reply_str(static_cast<char*>(zmq_msg_data(&replay[0])), zmq_msg_size(&replay[0]));
+            ret = (reply_str == "Alive");
+            DEBUG("Received reply: {}", reply_str);
+        } else {
+            ERROR("FAIL receive {}", zmq_strerror(zmq_e));
         }
-        // Close the request message to free allocated resources
-        zmq_msg_close(&request);
     } else {
-        ERROR("Msg init fail");
+        ERROR("FAIL to send request");
         _error_handler->handle(Errors::SEND_HEARTBEAT_FAIL);
     }
-
     return ret;
 }

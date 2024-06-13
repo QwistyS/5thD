@@ -35,7 +35,9 @@ public:
      * @brief Constructor
      */
     ZMQTransmitter(IContext* ctx, int socket_type, IError* error)
-        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error_handler(error) {};
+        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error_handler(error) {
+        _init();
+    };
 
     /**
      * @brief Connects to a target IP and port.
@@ -72,6 +74,8 @@ private:
     int _socket_type;
 
     void send_stream(void* data, size_t data_length, int chunk_size);
+    void _init();
+    void _clear_buffers();
 };
 
 #endif  // TRANSMITTER_H_
