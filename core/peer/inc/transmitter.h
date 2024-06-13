@@ -2,19 +2,9 @@
 #define TRANSMITTER_H_
 
 #include "5thderror_handler.h"
+#include "izmq.h"
 
 #define GENERIC_DATA "Heartbeat"
-
-/**
- * @brief Interface for network library context used by the transmitter.
- * @note Currently we use ZMQ but need to check libp2p, also useful for
- * testing mocks.
- */
-class ITransmitterContext {
-public:
-    virtual ~ITransmitterContext() = default;
-    virtual void* get_context() = 0;
-};
 
 /**
  * @brief Interface for the transmitter.
@@ -34,18 +24,18 @@ public:
  * @brief Transmitter class handles all outgoing connections using
  * dependency injection.
  */
-class Transmitter : public ITransmitter {
+class ZMQTransmitter : public ITransmitter {
 public:
     /**
      * @brief Destructor cleans all resources.
      */
-    virtual ~Transmitter();
+    virtual ~ZMQTransmitter();
 
     /**
      * @brief Constructor
      */
-    Transmitter(ITransmitterContext* ctx, int socket_type, IError* error)
-        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error_handler(error) {}
+    ZMQTransmitter(IContext* ctx, int socket_type, IError* error)
+        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error_handler(error) {};
 
     /**
      * @brief Connects to a target IP and port.
@@ -76,7 +66,7 @@ public:
     bool req_data(const char* OP) const override;
 
 private:
-    ITransmitterContext* _context;
+    IContext* _context;
     IError* _error_handler;
     void* _socket;
     int _socket_type;

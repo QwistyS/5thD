@@ -4,8 +4,12 @@
 int main(int argc, char* argv[]) {
     void *data = nullptr;
     Log::init();
-    Peer peer(123123);
+    int port = is_port_available(START_PORT);
+    if (port == -1) return port;
+    Peer peer(port);
+    peer.listen();
     peer.connect("127.0.0.1", 5555);
+    port = is_port_available(START_PORT);
     peer.send(data, 0);
     return 0;
 }

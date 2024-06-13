@@ -10,7 +10,7 @@ struct Connection {
         PROTO,
         TOTAL
     };
-    std::vector<Transmitter> clients;
+    std::vector<ZMQTransmitter> clients;
     bool trusted;
 };
 

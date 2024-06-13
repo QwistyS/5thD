@@ -5,12 +5,12 @@
 
 #include <zmq.h>
 
-Transmitter::~Transmitter() {
+ZMQTransmitter::~ZMQTransmitter() {
     if (_socket)
         close();
 }
 
-void Transmitter::connect(const std::string& ip, int port) {
+void ZMQTransmitter::connect(const std::string& ip, int port) {
     QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
     _socket = zmq_socket(_context->get_context(), _socket_type);
     if (_socket == NULL) {
@@ -32,7 +32,7 @@ void Transmitter::connect(const std::string& ip, int port) {
     }
 }
 
-void Transmitter::close() {
+void ZMQTransmitter::close() {
     if (zmq_close(_socket) == Errors::OK) {
         DEBUG("ZMQ closed socket");
     } else {
@@ -43,11 +43,11 @@ void Transmitter::close() {
     _socket = nullptr;
 }
 
-void Transmitter::send(void* data, size_t data_length) const {
+void ZMQTransmitter::send(void* data, size_t data_length) const {
     QWISTYS_UNIMPLEMENTED();
 }
 
-void Transmitter::send_stream(void* data, size_t data_length, int chunk_size) {
+void ZMQTransmitter::send_stream(void* data, size_t data_length, int chunk_size) {
     uint8_t* pdata = static_cast<uint8_t*>(data);
     int flags = 0;
 
@@ -73,7 +73,7 @@ void Transmitter::send_stream(void* data, size_t data_length, int chunk_size) {
     }
 }
 
-bool Transmitter::req_data(const char* OP) const {
+bool ZMQTransmitter::req_data(const char* OP) const {
     zmq_msg_t request;
     zmq_msg_t reply;
     bool ret = false;
