@@ -115,11 +115,12 @@ void Peer::init() {
         ERROR("IPC Bind fail");
         zmq_close(_ipc_socket);
         _ipc_socket = nullptr;
-        _errors.handle(Errors::FAIL_TOBIND);
+        _errors.handle(Errors::FAIL_TO_BIND);
     }
 }
 
 void Peer::_handle_new_connection(const std::string& ip, int port) {
+    QWISTYS_TODO_MSG("Add mutex for access to connections collection");
     // Create place for new connection
     _connections.emplace_back();
     auto& conn = _connections.back();
