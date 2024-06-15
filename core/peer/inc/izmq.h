@@ -3,6 +3,9 @@
 
 #include "5thderror_handler.h"
 
+void set_curve_server_options(void* socket, const char* public_key, const char* secret_key);
+void set_curve_client_options(void* socket, const char* public_key, const char* secret_key, const char* server_key);
+
 /**
  * @brief Interface for network library context.
  * @note Currently we use ZMQ but need to check libp2p, also useful for

@@ -4,6 +4,19 @@
 
 #include <zmq.h>
 
+void set_curve_server_options(void* socket, const char* public_key, const char* secret_key) {
+    int enable_curve = 1;
+    zmq_setsockopt(socket, ZMQ_CURVE_SERVER, &enable_curve, sizeof(enable_curve));
+    zmq_setsockopt(socket, ZMQ_CURVE_PUBLICKEY, public_key, 40);
+    zmq_setsockopt(socket, ZMQ_CURVE_SECRETKEY, secret_key, 40);
+}
+
+void set_curve_client_options(void* socket, const char* public_key, const char* secret_key, const char* server_key) {
+    zmq_setsockopt(socket, ZMQ_CURVE_PUBLICKEY, public_key, 40);
+    zmq_setsockopt(socket, ZMQ_CURVE_SECRETKEY, secret_key, 40);
+    zmq_setsockopt(socket, ZMQ_CURVE_SERVERKEY, server_key, 40);
+}
+
 ZMQWContext::~ZMQWContext() {
     if (_context)
         close();
