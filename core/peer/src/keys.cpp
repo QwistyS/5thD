@@ -18,9 +18,10 @@ void init(keys* k) {
 void deinit(keys* k) {
     sodium_free(k->public_key);
     sodium_free(k->secret_key);
+    clear_keys(k);
 }
 
-void clear(keys* k) {
+void clear_keys(keys* k) {
     sodium_memzero(k->public_key, KEY_LENGTH);
     sodium_memzero(k->secret_key, KEY_LENGTH);
 }

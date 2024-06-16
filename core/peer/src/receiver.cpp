@@ -23,6 +23,7 @@ void Receiver::init() {
         _error->handle(Errors::FAIL_INIT_LISTENER);
     }
     DEBUG("Listener init success on {}", addr);
+    
 }
 
 void Receiver::close() {

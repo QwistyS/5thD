@@ -25,6 +25,7 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 set(ENABLE_DRAFTS OFF CACHE BOOL "Build and install draft classes and methods" FORCE)
 set(WITH_PERF_TOOL OFF CACHE BOOL "Build performance tests" FORCE)
 set(WITH_LIBSODIUM ON CACHE BOOL "Build with libsodium for encryption" FORCE)
+set(ENABLE_CURVE ON CACHE BOOL "Build with libsodium for encryption" FORCE)
 # Disable tests for libzmq
 set(ENABLE_CPACK OFF CACHE BOOL "Enable CPack packaging" FORCE)
 set(ENABLE_CZMQ_BUILD_TESTS OFF CACHE BOOL "Build CZMQ tests" FORCE)

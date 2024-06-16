@@ -13,6 +13,10 @@ keys *generate_keys() {
         ERROR("FAIL ALLOCATE MEE");
     };
     init(_keys);
+    if (zmq_curve_keypair(_keys->public_key, _keys->secret_key) != Errors::OK) {
+        ERROR("FAIL TO GENERATE KEYS");
+        free(_keys);
+    }
     return _keys;
 }
 

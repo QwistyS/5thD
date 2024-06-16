@@ -69,6 +69,7 @@ void Peer::listen() {
         ERROR("FAIL TO OPEN LISTENER");
         return;
     }
+    keys* k = generate_keys();
     _receiver = std::make_unique<Receiver>(_port, &_ctx_out, &_errors);
     _protocol = std::make_unique<Receiver>(_port - 1, &_ctx_out, &_errors);
 }
