@@ -2,9 +2,12 @@
 #define IZMQ_H
 
 #include "5thderror_handler.h"
+#include "keys.h"
 
 void set_curve_server_options(void* socket, const char* public_key, const char* secret_key);
 void set_curve_client_options(void* socket, const char* public_key, const char* secret_key, const char* server_key);
+keys *generate_keys();
+
 
 /**
  * @brief Interface for network library context.

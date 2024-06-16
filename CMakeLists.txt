@@ -15,6 +15,10 @@ file(GLOB CORE_SRC_FILES
     "core/*.cpp"
     "core/peer/src/*.cpp"
 )
+# Find libsodium
+find_library(SODIUM_LIBRARY sodium)
+include_directories(/usr/local/include)
+
 
 # Set libzmq to build static libraries
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
@@ -51,12 +55,13 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${CORE_SRC_FILES})
 
 # Link Qt6 libraries to the main executable
 target_link_libraries(${PROJECT_NAME} 
-    Qt6::Core 
-    Qt6::Gui 
-    Qt6::Widgets
+    # Qt6::Core 
+    # Qt6::Gui 
+    # Qt6::Widgets
     spdlog::spdlog
     libzmq-static
     OpenSSL::SSL
     miniupnpc::miniupnpc
+    ${SODIUM_LIBRARY}
 )
 

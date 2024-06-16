@@ -1,8 +1,18 @@
 #include "keys.h"
+#include "5thderror_handler.h"
+#include "5thdlogger.h"
+#include <sodium.h>
+
 
 void init(keys* k) {
     k->public_key = (char*)sodium_malloc(KEY_LENGTH);
+    if(!k->public_key) {
+        ERROR("SODIUM MALLOC FAIL");
+    }
     k->secret_key = (char*)sodium_malloc(KEY_LENGTH);
+    if(!k->secret_key) {
+        ERROR("SODIUM MALLOC FAIL");
+    }
 }
 
 void deinit(keys* k) {

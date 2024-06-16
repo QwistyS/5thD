@@ -1,8 +1,20 @@
 #include "izmq.h"
 #include "5thderror_handler.h"
 #include "5thdlogger.h"
+#include "keys.h"
 
 #include <zmq.h>
+
+
+keys *generate_keys() {
+    keys* _keys = (keys*)malloc(sizeof(keys));
+
+    if (!_keys) {
+        ERROR("FAIL ALLOCATE MEE");
+    };
+    init(_keys);
+    return _keys;
+}
 
 void set_curve_server_options(void* socket, const char* public_key, const char* secret_key) {
     int enable_curve = 1;
