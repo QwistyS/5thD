@@ -76,6 +76,7 @@ private:
     void send_stream(void* data, size_t data_length, int chunk_size);
     void _init();
     void _clear_buffers();
+    void _set_curve_client_options(const char* public_key, const char* secret_key, const char* server_key);
 };
 
 #endif  // TRANSMITTER_H_

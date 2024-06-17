@@ -23,6 +23,12 @@ void ZMQTransmitter::_clear_buffers() {
     }
 }
 
+void ZMQTransmitter::_set_curve_client_options(const char* public_key, const char* secret_key, const char* server_key) {
+    zmq_setsockopt(_socket, ZMQ_CURVE_PUBLICKEY, public_key, 40);
+    zmq_setsockopt(_socket, ZMQ_CURVE_SECRETKEY, secret_key, 40);
+    zmq_setsockopt(_socket, ZMQ_CURVE_SERVERKEY, server_key, 40);
+}
+
 void ZMQTransmitter::_init() {
     QWISTYS_TODO_MSG("Create a normal way to handle buffers");
     for (int i = 0; i < MESSAGES_MAX_AMOUNT; i++) {

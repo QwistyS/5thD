@@ -1,9 +1,7 @@
 #ifndef KEYS_H
 #define KEYS_H
 
-
-
-#define MEANWHILE_KEY "Sunshine, hope you having a awesome life."
+#define MEANWHILE_KEY "Sunshine, hope you having an awesome life."
 #define PATH_KEYS "nothing_here.enc"
 #define KEY_LENGTH 41
 

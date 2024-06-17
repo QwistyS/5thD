@@ -4,10 +4,11 @@
 #include "5thderror_handler.h"
 #include "keys.h"
 
-void set_curve_server_options(void* socket, const char* public_key, const char* secret_key);
-void set_curve_client_options(void* socket, const char* public_key, const char* secret_key, const char* server_key);
-keys *generate_keys();
-
+/**
+ * @brief ZMQ CURVE API for generating the keys
+ * @return a key struct on fail will return nullptr
+ */
+keys* generate_keys();
 
 /**
  * @brief Interface for network library context.
@@ -26,7 +27,7 @@ public:
 class ZMQWContext : public IContext {
 public:
     virtual ~ZMQWContext();
-    ZMQWContext(IError *error) : _context(nullptr),  _error(error) { set_context(); };
+    ZMQWContext(IError* error) : _context(nullptr), _error(error) { set_context(); };
     void* get_context();
 
 private:

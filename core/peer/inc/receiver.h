@@ -15,10 +15,9 @@ public:
 class Receiver : public IReceiver {
 public:
     virtual ~Receiver();
-    Receiver(int port, IContext* ctx, IError* error)
-        : _ctx(ctx), _port(port), _error(error), _socket_rout(nullptr) {
-            init();
-        };
+    Receiver(int port, IContext* ctx, IError* error) : _ctx(ctx), _port(port), _error(error), _socket_rout(nullptr) {
+        _init();
+    };
     void listen() override;
     void close() override;
     int get_port() const override { return _port; }
@@ -29,7 +28,8 @@ private:
     IError* _error;
     IContext* _ctx;
 
-    void init();
+    void _init();
+    void _set_curve_server_options(const char* public_key, const char* secret_key);
 };
 
 #endif  // RECEIVER_H

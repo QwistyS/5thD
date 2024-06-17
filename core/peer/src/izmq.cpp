@@ -5,32 +5,21 @@
 
 #include <zmq.h>
 
-
-keys *generate_keys() {
-    keys* _keys = (keys*)malloc(sizeof(keys));
+keys* generate_keys() {
+    keys* _keys = (keys*) malloc(sizeof(keys));
 
     if (!_keys) {
         ERROR("FAIL ALLOCATE MEE");
+        return nullptr;
     };
+
     init(_keys);
     if (zmq_curve_keypair(_keys->public_key, _keys->secret_key) != Errors::OK) {
         ERROR("FAIL TO GENERATE KEYS");
         free(_keys);
+        _keys = nullptr;
     }
     return _keys;
-}
-
-void set_curve_server_options(void* socket, const char* public_key, const char* secret_key) {
-    int enable_curve = 1;
-    zmq_setsockopt(socket, ZMQ_CURVE_SERVER, &enable_curve, sizeof(enable_curve));
-    zmq_setsockopt(socket, ZMQ_CURVE_PUBLICKEY, public_key, 40);
-    zmq_setsockopt(socket, ZMQ_CURVE_SECRETKEY, secret_key, 40);
-}
-
-void set_curve_client_options(void* socket, const char* public_key, const char* secret_key, const char* server_key) {
-    zmq_setsockopt(socket, ZMQ_CURVE_PUBLICKEY, public_key, 40);
-    zmq_setsockopt(socket, ZMQ_CURVE_SECRETKEY, secret_key, 40);
-    zmq_setsockopt(socket, ZMQ_CURVE_SERVERKEY, server_key, 40);
 }
 
 ZMQWContext::~ZMQWContext() {
