@@ -71,8 +71,8 @@ void Receiver::_init() {
 void Receiver::set_curve_server_options(const char* server_public_key, const char* server_secret_key) {
     int enable_curve = 1;
     // zmq_setsockopt(_socket_rout, ZMQ_CURVE_SERVER, &enable_curve, sizeof(enable_curve));
-    // zmq_setsockopt(_socket_rout, ZMQ_CURVE_PUBLICKEY, server_public_key, KEY_LENGTH - 1);
-    // zmq_setsockopt(_socket_rout, ZMQ_CURVE_SECRETKEY, server_secret_key, KEY_LENGTH - 1);
+    zmq_setsockopt(_socket_rout, ZMQ_CURVE_PUBLICKEY, server_public_key, KEY_LENGTH);
+    zmq_setsockopt(_socket_rout, ZMQ_CURVE_SECRETKEY, server_secret_key, KEY_LENGTH);
 }
 
 void Receiver::close() {

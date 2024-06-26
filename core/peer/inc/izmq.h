@@ -6,9 +6,9 @@
 
 /**
  * @brief ZMQ CURVE API for generating the keys
- * @return a key struct on fail will return nullptr
+ * @return 0 on success
  */
-keys* generate_keys();
+int generate_keys(keys_t* keys);
 
 /**
  * @brief Interface for network library context.

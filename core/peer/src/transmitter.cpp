@@ -1,3 +1,4 @@
+#include "keys.h"
 #include "transmitter.h"
 #include "5thderrors.h"
 #include "5thdlogger.h"
@@ -23,10 +24,12 @@ void ZMQTransmitter::_clear_buffers() {
     }
 }
 
-void ZMQTransmitter::set_curve_client_options(const char* server_public_key, const char* server_secret_key) {
-    // zmq_setsockopt(_socket, ZMQ_CURVE_SERVERKEY, server_public_key, KEY_LENGTH - 1);
-    // zmq_setsockopt(_socket, ZMQ_CURVE_PUBLICKEY, server_public_key, KEY_LENGTH - 1);
-    // zmq_setsockopt(_socket, ZMQ_CURVE_SECRETKEY, server_secret_key, KEY_LENGTH - 1);
+void ZMQTransmitter::set_curve_client_options(const char* server_public_key) {
+    auto keys = Keys::get_instance();
+
+    zmq_setsockopt(_socket, ZMQ_CURVE_PUBLICKEY, keys->get_key(PUBLIC_KEY_FLAG), KEY_LENGTH);
+    zmq_setsockopt(_socket, ZMQ_CURVE_SECRETKEY, keys->get_key(PRIVATE_KEY_FLAG), KEY_LENGTH);
+    zmq_setsockopt(_socket, ZMQ_CURVE_SERVERKEY, server_public_key, KEY_LENGTH);
 }
 
 void ZMQTransmitter::_init() {

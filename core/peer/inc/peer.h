@@ -21,7 +21,7 @@ int is_port_available(int port);
 class Peer {
 public:
     Peer(int port) : 
-        _port(port), _ctx_out(&_errors), _ipc_socket(nullptr), _keys(nullptr) { _init(); };
+        _port(port), _ctx_out(&_errors), _ipc_socket(nullptr) { _init(); };
 
     ~Peer();
     void connect(const std::string& ip, int port);
@@ -40,7 +40,6 @@ private:
     std::unordered_set<void*> _ipc_connections;
     std::unique_ptr<LRU_Cache<std::string, Connection>> _conn_cache;
     void* _ipc_socket;
-    keys* _keys;
 
     void _init();
     void _handle_new_connection(const std::string& ip, int port);

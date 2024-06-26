@@ -8,8 +8,6 @@
 int main(int argc, char* argv[]) {
     char command[10];
     void* data = nullptr;
-    LRU_Cache<std::string, Connection> lruc(10);
-
     Log::init();
     int port = is_port_available(START_PORT);
     if (port == -1)

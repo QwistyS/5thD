@@ -52,9 +52,6 @@ Peer::~Peer() {
     if (_ipc_socket) {
         zmq_close(_ipc_socket);
     }
-    if (_keys) {
-        free(_keys);
-    }
 }
 
 void Peer::connect(const std::string& ip, int port) {
@@ -72,7 +69,9 @@ void Peer::listen() {
         return;
     }
     _receiver = std::make_unique<Receiver>(_port, &_ctx_out, &_errors);
-    _receiver->set_curve_server_options(_keys->server_public_key, _keys->server_secret_key);
+
+    auto _keys = Keys::get_instance();
+    _receiver->set_curve_server_options(_keys->get_key(PRIVATE_KEY_FLAG), _keys->get_key(PUBLIC_KEY_FLAG));
     _receiver->listen();
 
     // auto next_port = is_port_available(_port + 1);
@@ -99,7 +98,7 @@ void Peer::_connect(Connection& conn, const std::string& ip, int port, Connectio
     }
 
     conn.clients.emplace_back(&_ctx_out, socket_type, &_errors);
-    conn.clients[client_type].set_curve_client_options(_keys->server_public_key, _keys->server_secret_key);
+    conn.clients[client_type].set_curve_client_options(Keys::get_instance()->get_key(PUBLIC_KEY_FLAG));
     conn.clients[client_type].connect(ip, port);
 
     switch (client_type) {
@@ -120,14 +119,6 @@ void Peer::_init() {
     // Init Cache for connections
     _conn_cache = std::make_unique<LRU_Cache<std::string, Connection>>(CACHE_SIZE);
     
-    // init keys
-    _keys = (keys*) malloc(sizeof(keys));
-    if (_keys == nullptr) {
-        ERROR("FAIL to init keys struct");
-        _errors.handle(Errors::FAIL_INIT_KEYS);
-    }
-    keys_init(_keys);
-
     // init socket
     _ipc_socket = zmq_socket(_ctx_out.get_context(), ZMQ_PAIR);
     if (_ipc_socket == nullptr) {
@@ -135,8 +126,17 @@ void Peer::_init() {
         zmq_close(_ipc_socket);
         _errors.handle(Errors::FAIL_OPEN_SOCKET);
     }
-    zmq_setsockopt(_ipc_socket, ZMQ_CURVE_SERVER, _keys->server_public_key, KEY_LENGTH - 1);
     
+    // init keys
+    auto _keys = Keys::get_instance();
+    
+
+    QWISTYS_TODO_MSG("In init of the listener for a peer, do i need a way to configure sockopt? or all @ init?");
+    // Set socket opt
+    // 
+    // zmq_setsockopt(_ipc_socket, ZMQ_CURVE_SERVER, _keys->server_public_key, KEY_LENGTH - 1);
+    
+    // Bind
     if (zmq_bind(_ipc_socket, "inproc://workers") != Errors::OK) {
         ERROR("IPC Bind fail");
         zmq_close(_ipc_socket);

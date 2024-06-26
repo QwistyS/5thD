@@ -70,7 +70,7 @@ public:
     /**
      * @brief
      */
-    void set_curve_client_options(const char* server_public_key, const char* server_secret_key);
+    void set_curve_client_options(const char* server_public_key);
     IContext* _context;
     IError* _error_handler;
     void* _socket;

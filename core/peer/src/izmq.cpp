@@ -5,21 +5,8 @@
 
 #include <zmq.h>
 
-keys* generate_keys() {
-    keys* _keys = (keys*) malloc(sizeof(keys));
-
-    if (!_keys) {
-        ERROR("FAIL ALLOCATE MEE");
-        return nullptr;
-    };
-
-    keys_init(_keys);
-    if (zmq_curve_keypair(_keys->server_public_key, _keys->server_secret_key) != Errors::OK) {
-        ERROR("FAIL TO GENERATE KEYS");
-        free(_keys);
-        _keys = nullptr;
-    }
-    return _keys;
+int generate_keys(keys_t* keys) {
+    return zmq_curve_keypair(keys->public_key, keys->private_key);
 }
 
 ZMQWContext::~ZMQWContext() {

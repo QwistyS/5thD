@@ -1,21 +1,29 @@
 #ifndef KEYS_H
 #define KEYS_H
 
-#define MEANWHILE_KEY "Sunshine, hope you having an awesome life."
-#define PATH_KEYS "nothing_here.enc"
 #define KEY_LENGTH 41
+#define PATH_TO_KEY "keys.inc"
 
-struct keys {
-    char *server_public_key;
-    char *server_secret_key;
+#define PRIVATE_KEY_FLAG 0
+#define PUBLIC_KEY_FLAG  1
+
+typedef struct {
+    char* public_key;
+    char* private_key;
+} keys_t;
+
+class Keys {
+public:
+    Keys(const char* path) { _init(path); };
+    ~Keys();
+    static Keys* get_instance();
+    const char* get_key(int flag);
+private:
+    keys_t _keys;
+    void _init(const char* path);
 };
 
-void keys_init(keys* k);
-void keys_deinit(keys* k);
-void keys_clear(keys* k);
-
-void write_keys(const char *server_public_key, const char *secret_key, const char *filename, const unsigned char *key);
-void read_keys(char *server_public_key, char *secret_key, const char *filename, const unsigned char *key);
 
 
-#endif // KEYS_H
+
+#endif  // KEYS_H
