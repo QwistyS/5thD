@@ -23,10 +23,10 @@ void ZMQTransmitter::_clear_buffers() {
     }
 }
 
-void ZMQTransmitter::_set_curve_client_options(const char* public_key, const char* secret_key, const char* server_key) {
-    zmq_setsockopt(_socket, ZMQ_CURVE_PUBLICKEY, public_key, 40);
-    zmq_setsockopt(_socket, ZMQ_CURVE_SECRETKEY, secret_key, 40);
-    zmq_setsockopt(_socket, ZMQ_CURVE_SERVERKEY, server_key, 40);
+void ZMQTransmitter::set_curve_client_options(const char* server_public_key, const char* server_secret_key) {
+    // zmq_setsockopt(_socket, ZMQ_CURVE_SERVERKEY, server_public_key, KEY_LENGTH - 1);
+    // zmq_setsockopt(_socket, ZMQ_CURVE_PUBLICKEY, server_public_key, KEY_LENGTH - 1);
+    // zmq_setsockopt(_socket, ZMQ_CURVE_SECRETKEY, server_secret_key, KEY_LENGTH - 1);
 }
 
 void ZMQTransmitter::_init() {
@@ -41,9 +41,6 @@ void ZMQTransmitter::_init() {
             ERROR("FAIL to init message size");
         }
     }
-}
-
-void ZMQTransmitter::connect(const std::string& ip, int port) {
     QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
     _socket = zmq_socket(_context->get_context(), _socket_type);
     if (_socket == NULL) {
@@ -51,17 +48,20 @@ void ZMQTransmitter::connect(const std::string& ip, int port) {
     } else {
         DEBUG("Socket created successfully");
     }
+}
 
+void ZMQTransmitter::connect(const std::string& ip, int port) {
     std::string addr = "tcp://" + ip + ":" + std::to_string(port);
     DEBUG("Connecting to addr {}", addr);
 
+    QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
     if (zmq_connect(_socket, addr.c_str()) == Errors::OK) {
         DEBUG("Connected to {}", addr);
     } else {
         ERROR("Fail to connect to {}", addr);
         zmq_close(_socket);
         _socket = nullptr;
-        _error_handler->handle(Errors::SOCKET_INIT_FAIL);
+        _error_handler->handle(Errors::SOCKET_CONNECT_FAIL);
     }
 }
 

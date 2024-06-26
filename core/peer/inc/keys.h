@@ -6,16 +6,16 @@
 #define KEY_LENGTH 41
 
 struct keys {
-    char *public_key;
-    char *secret_key;
+    char *server_public_key;
+    char *server_secret_key;
 };
 
-void init(keys* k);
-void deinit(keys* k);
-void clear_keys(keys* k);
+void keys_init(keys* k);
+void keys_deinit(keys* k);
+void keys_clear(keys* k);
 
-void write_keys(const char *public_key, const char *secret_key, const char *filename, const unsigned char *key);
-void read_keys(char *public_key, char *secret_key, const char *filename, const unsigned char *key);
+void write_keys(const char *server_public_key, const char *secret_key, const char *filename, const unsigned char *key);
+void read_keys(char *server_public_key, char *secret_key, const char *filename, const unsigned char *key);
 
 
 #endif // KEYS_H

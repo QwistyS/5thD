@@ -6,16 +6,22 @@
 #include "connection.h"
 #include "izmq.h"
 #include "receiver.h"
+#include "5thdlru_cache.h"
 
 #define START_PORT 7099
+#define CACHE_SIZE 100
 
 int is_port_available(int port);
 
+/**
+ * @brief Peer main object
+ * @note In future will be configured by configuration file or whatever
+ * meanwhile STATIC DEFINES
+ */
 class Peer {
 public:
-    Peer(int port) : _port(port), _ctx_out(&_errors), _ipc_socket(nullptr) {
-        init();
-    };
+    Peer(int port) : 
+        _port(port), _ctx_out(&_errors), _ipc_socket(nullptr), _keys(nullptr) { _init(); };
 
     ~Peer();
     void connect(const std::string& ip, int port);
@@ -32,9 +38,11 @@ private:
     std::unique_ptr<Receiver> _receiver;
     std::unique_ptr<Receiver> _protocol;
     std::unordered_set<void*> _ipc_connections;
+    std::unique_ptr<LRU_Cache<std::string, Connection>> _conn_cache;
     void* _ipc_socket;
-    
-    void init();
+    keys* _keys;
+
+    void _init();
     void _handle_new_connection(const std::string& ip, int port);
     void _connect(Connection& conn, const std::string& ip, int port, Connection::Transmitters client_type);
     void _setup_proto(Connection& conn);

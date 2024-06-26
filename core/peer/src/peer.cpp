@@ -15,33 +15,32 @@
 int is_port_available(int port) {
     int _port = port;
     int ret = -1;
+    sockaddr_in addr;
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    
+    if (sock == -1) {
+        ERROR("FAIL TO OPEN SOCKET FOR PORT DISCOVERY");
+        return ret;
+    }
 
     while (true) {
-        int sock = socket(AF_INET, SOCK_STREAM, 0);
-        if (sock == -1) {
-            ERROR("TO OPEN SOCKET FOR PORT DISCOVERY");
-            return ret;
-        }
-
-        sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = INADDR_ANY;
-        addr.sin_port = htons(port);
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        addr.sin_port = htons(_port);
 
         if (bind(sock, (struct sockaddr*) &addr, sizeof(addr)) == Errors::OK) {
             ret = _port;
-            close(sock);
             break;
         } else {
             _port++;
-            close(sock);
-            if (_port > 0xFFFF) {
+            DEBUG("Checking next port {}", _port);
+            if (_port > 7110) {
                 return ret;
             }
         }
     }
-
+    close(sock);
     DEBUG("Chosen socket port {}", _port);
     return _port;
 }
@@ -49,9 +48,12 @@ int is_port_available(int port) {
 Peer::~Peer() {
     _connections.clear();
     _receiver->close();
-    _protocol->close();
+    // _protocol->close();
     if (_ipc_socket) {
         zmq_close(_ipc_socket);
+    }
+    if (_keys) {
+        free(_keys);
     }
 }
 
@@ -65,13 +67,19 @@ void Peer::send(void* data, size_t data_length) {
 }
 
 void Peer::listen() {
-    if(_ipc_socket == nullptr) {
+    if (_ipc_socket == nullptr) {
         ERROR("FAIL TO OPEN LISTENER");
         return;
     }
-    keys* k = generate_keys();
     _receiver = std::make_unique<Receiver>(_port, &_ctx_out, &_errors);
-    _protocol = std::make_unique<Receiver>(_port - 1, &_ctx_out, &_errors);
+    _receiver->set_curve_server_options(_keys->server_public_key, _keys->server_secret_key);
+    _receiver->listen();
+
+    // auto next_port = is_port_available(_port + 1);
+
+    // _protocol = std::make_unique<Receiver>(next_port, &_ctx_out, &_errors);
+    // _protocol->set_curve_server_options(_keys->server_public_key, _keys->server_secret_key);
+    // _protocol->listen();
 }
 
 void Peer::_connect(Connection& conn, const std::string& ip, int port, Connection::Transmitters client_type) {
@@ -80,15 +88,18 @@ void Peer::_connect(Connection& conn, const std::string& ip, int port, Connectio
     switch (client_type) {
         case Connection::USER:
             socket_type = ZMQ_REQ;
+            conn.variant = Connection::USER;
             break;
         case Connection::PROTO:
             socket_type = ZMQ_REP;
+            conn.variant = Connection::PROTO;
             break;
         default:
             break;
     }
 
     conn.clients.emplace_back(&_ctx_out, socket_type, &_errors);
+    conn.clients[client_type].set_curve_client_options(_keys->server_public_key, _keys->server_secret_key);
     conn.clients[client_type].connect(ip, port);
 
     switch (client_type) {
@@ -105,13 +116,27 @@ void Peer::_setup_proto(Connection& conn) {
     conn.trusted = true;
 }
 
-void Peer::init() {
+void Peer::_init() {
+    // Init Cache for connections
+    _conn_cache = std::make_unique<LRU_Cache<std::string, Connection>>(CACHE_SIZE);
+    
+    // init keys
+    _keys = (keys*) malloc(sizeof(keys));
+    if (_keys == nullptr) {
+        ERROR("FAIL to init keys struct");
+        _errors.handle(Errors::FAIL_INIT_KEYS);
+    }
+    keys_init(_keys);
+
+    // init socket
     _ipc_socket = zmq_socket(_ctx_out.get_context(), ZMQ_PAIR);
     if (_ipc_socket == nullptr) {
         ERROR("FAIL LISTEN");
         zmq_close(_ipc_socket);
         _errors.handle(Errors::FAIL_OPEN_SOCKET);
     }
+    zmq_setsockopt(_ipc_socket, ZMQ_CURVE_SERVER, _keys->server_public_key, KEY_LENGTH - 1);
+    
     if (zmq_bind(_ipc_socket, "inproc://workers") != Errors::OK) {
         ERROR("IPC Bind fail");
         zmq_close(_ipc_socket);

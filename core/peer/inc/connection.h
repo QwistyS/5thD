@@ -11,6 +11,7 @@ struct Connection {
         TOTAL
     };
     std::vector<ZMQTransmitter> clients;
+    Transmitters variant;
     bool trusted;
 };
 
