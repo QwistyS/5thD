@@ -43,7 +43,6 @@ include_directories(${THIRDP}libzmq/include)
 # Add miniupnpc
 add_subdirectory(${THIRDP}miniupnpc)
 include_directories(${THIRDP}miniupnpc/include)
-
 # Add spdlog
 add_subdirectory(${THIRDP}spdlog)
 
