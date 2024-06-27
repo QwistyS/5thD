@@ -11,11 +11,6 @@
 #define START_PORT 7099
 #define CACHE_SIZE 100
 
-std::string get_local_ip();
-
-int is_port_available(int port);
-
-bool set_port_forward(int external_port, const std::string& internal_ip, int internal_port);
 
 /**
  * @brief Peer main object
