@@ -1,11 +1,11 @@
 #ifndef RECEIVER_H
 #define RECEIVER_H
 
-#include <pthread.h>
+#include <thread>
 #include "5thderror_handler.h"
 #include "izmq.h"
 
-static void* worker(void* args);
+#define RECEIVER_ID "RECEIVER_COOL_ID"
 
 typedef struct {
     void* socket;
@@ -26,18 +26,21 @@ public:
     Receiver(int port, IContext* ctx, IError* error) : _ctx(ctx), _port(port), _error(error), _socket_rout(nullptr) {
         _init();
     };
+    void worker();
     void listen() override;
     void close() override;
     int get_port() const override { return _port; }
     void set_curve_server_options(const char* server_public_key, const char* server_secret_key);
+    std::string get_id() { return _self_id; }
 
 private:
     int _port;
     void* _socket_rout;
     IError* _error;
     IContext* _ctx;
-    pthread_t _worker_thread;
+    std::thread _worker_thread;
     thread_args_t _thread_args;
+    std::string _self_id;
     void _init();
 };
 

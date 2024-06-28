@@ -1,8 +1,8 @@
-#include "keys.h"
-#include "transmitter.h"
 #include "5thderrors.h"
 #include "5thdlogger.h"
+#include "keys.h"
 #include "qwistys_macro.h"
+#include "transmitter.h"
 
 #include <zmq.h>
 
@@ -32,49 +32,51 @@ void ZMQTransmitter::set_curve_client_options(const char* server_public_key) {
     zmq_setsockopt(_socket, ZMQ_CURVE_SERVERKEY, server_public_key, KEY_LENGTH);
 }
 
-void ZMQTransmitter::_init() {
-    QWISTYS_TODO_MSG("Create a normal way to handle buffers");
-    for (int i = 0; i < MESSAGES_MAX_AMOUNT; i++) {
-        zmq_msg_init(&replay[i]);
-        if (zmq_msg_init_size(&replay[i], strlen(GENERIC_DATA)) != Errors::OK) {
-            ERROR("FAIL to init message size");
-        }
-        zmq_msg_init(&request[i]);
-        if (zmq_msg_init_size(&request[i], strlen(GENERIC_DATA)) != Errors::OK) {
-            ERROR("FAIL to init message size");
-        }
-    }
-    QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
+void ZMQTransmitter::_init(const std::string& id) {
+    _error->reg(id);
+    _error->handle(id, Errors::OK);
+
+    memcpy(&_self_info.id, id.c_str(), id.size());
+
     _socket = zmq_socket(_context->get_context(), _socket_type);
-    if (_socket == NULL) {
-        ERROR("ZMQ Fail to create socket");
-    } else {
-        DEBUG("Socket created successfully");
+
+    if (_socket == nullptr) {
+        ERROR("Fail to init socket");
+        _error->handle(_self_info.id, Errors::SOCKET_INIT_FAIL);
     }
+
+    if (zmq_setsockopt(_socket, ZMQ_IDENTITY, _self_info.id, sizeof(_self_info.id)) != Errors::OK)
+        _error->handle(_self_info.id, Errors::FAIL_SETSOCKOPT_ID);
 }
 
 void ZMQTransmitter::connect(const std::string& ip, int port) {
+    _error->handle(_self_info.id, Errors::OK);
+
+    _self_info.addr = ip;
+    _self_info.port = port;
+
     std::string addr = "tcp://" + ip + ":" + std::to_string(port);
     DEBUG("Connecting to addr {}", addr);
 
-    QWISTYS_TODO_MSG("Handle the case when zmq cant open socket");
     if (zmq_connect(_socket, addr.c_str()) == Errors::OK) {
         DEBUG("Connected to {}", addr);
     } else {
         ERROR("Fail to connect to {}", addr);
         zmq_close(_socket);
         _socket = nullptr;
-        _error_handler->handle(Errors::SOCKET_CONNECT_FAIL);
+        _error->handle(_self_info.id, Errors::SOCKET_CONNECT_FAIL);
     }
 }
 
 void ZMQTransmitter::close() {
+    _error->handle(_self_info.id, Errors::OK);
+
     if (zmq_close(_socket) == Errors::OK) {
         DEBUG("ZMQ closed socket");
     } else {
         int errnum = zmq_errno();
         ERROR("ZMQ Fail to close socket with error {}", zmq_strerror(errnum));
-        _error_handler->handle(Errors::SOCKET_CLOSE_FAIL);
+        _error->handle(_self_info.id, Errors::SOCKET_CLOSE_FAIL);
     }
     _socket = nullptr;
 }
@@ -84,6 +86,7 @@ void ZMQTransmitter::send(void* data, size_t data_length) const {
 }
 
 void ZMQTransmitter::send_stream(void* data, size_t data_length, int chunk_size) {
+    _error->handle(_self_info.id, Errors::OK);
     uint8_t* pdata = static_cast<uint8_t*>(data);
     int flags = 0;
 
@@ -94,7 +97,7 @@ void ZMQTransmitter::send_stream(void* data, size_t data_length, int chunk_size)
         if (zmq_send(_socket, pdata, current_chunk_size, flags) != Errors::OK) {
             pdata = nullptr;
             ERROR("ZMQ failed to send data chunk");
-            _error_handler->handle(Errors::SOCKET_SEND_FAIL);
+            _error->handle(_self_info.id, Errors::SOCKET_SEND_FAIL);
             return;
         }
 
@@ -105,35 +108,6 @@ void ZMQTransmitter::send_stream(void* data, size_t data_length, int chunk_size)
     // Send an empty message to signify the end
     if (zmq_send(_socket, "", 0, 0) < 0) {
         ERROR("ZMQ failed to send final empty message");
-        _error_handler->handle(Errors::SOCKET_SEND_FAIL);
+        _error->handle(_self_info.id, Errors::SOCKET_SEND_FAIL);
     }
-}
-
-bool ZMQTransmitter::req_data(const char* OP) const {
-    bool ret = false;
-
-    if (_socket == nullptr) {
-        DEBUG("NO VALID SOCKET");
-        return ret;
-    }
-
-    memcpy(zmq_msg_data(&request[0]), OP, strlen(OP));
-
-    if (zmq_msg_send(&request[0], _socket, 0) == strlen(OP)) {
-        DEBUG("Message {} {} sent", OP, strlen(OP));
-
-        auto zmq_e = zmq_msg_recv(&replay[0], _socket, 0);
-
-        if (zmq_e != -1) {
-            std::string reply_str(static_cast<char*>(zmq_msg_data(&replay[0])), zmq_msg_size(&replay[0]));
-            ret = (reply_str == "Alive");
-            DEBUG("Received reply: {}", reply_str);
-        } else {
-            ERROR("FAIL receive {}", zmq_strerror(zmq_e));
-        }
-    } else {
-        ERROR("FAIL to send request");
-        _error_handler->handle(Errors::SEND_HEARTBEAT_FAIL);
-    }
-    return ret;
 }

@@ -3,14 +3,21 @@
 
 #include <unordered_set>
 #include <vector>
+#include "5thdlru_cache.h"
 #include "connection.h"
 #include "izmq.h"
 #include "receiver.h"
-#include "5thdlru_cache.h"
+#include "transmitter.h"
+#include "5thdtask.h"
 
 #define START_PORT 7099
 #define CACHE_SIZE 100
+#define PEER_ID "PEER_ID"
 
+typedef struct {
+    conn_info_t conn_info;
+    std::unordered_map<std::string, ZMQTransmitter> transmitters;
+} client_t;
 
 /**
  * @brief Peer main object
@@ -19,32 +26,23 @@
  */
 class Peer {
 public:
-    Peer(int port) : 
-        _port(port), _ctx_out(&_errors), _ipc_socket(nullptr) { _init(); };
+    Peer(int port, IError* e) : _port(port), _ctx_out(e), _errors(e) { _init(); };
 
     ~Peer();
-    void connect(const std::string& ip, int port);
-    void send(void* data, size_t data_length);
-    int get_proto() { return _protocol->get_port(); };
-    int get_selfport() { return _port; };
-    void listen();
+    void task(conn_info_t info, Task task);
 
 private:
     int _port;
     ZMQWContext _ctx_out;
-    NetworkError _errors;
-    std::vector<Connection> _connections;
+    IError* _errors;
+    std::vector<client_t> _connections;
     std::unique_ptr<Receiver> _receiver;
-    std::unique_ptr<Receiver> _protocol;
     std::unordered_set<void*> _ipc_connections;
-    std::unique_ptr<LRU_Cache<std::string, Connection>> _conn_cache;
-    void* _ipc_socket;
-
+    std::unique_ptr<LRU_Cache<std::string, client_t>> _conn_cache;
+    std::string _self_id;
     void _init();
-    void _handle_new_connection(const std::string& ip, int port);
-    void _connect(Connection& conn, const std::string& ip, int port, Connection::Transmitters client_type);
-    void _setup_proto(Connection& conn);
-    void _req_user_data(Connection& conn);
+
+    void handle_listen(conn_info_t info);
 };
 
 #endif  // PEER_H

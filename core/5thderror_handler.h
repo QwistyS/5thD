@@ -8,15 +8,23 @@
 class IError {
 public:
     virtual ~IError() = default;
-    virtual void handle(Errors e) = 0;
+    virtual void handle(const std::string& id, Errors e) = 0;
+    virtual void reg(const std::string& id) = 0;
+    virtual void unreg(const std::string& id) = 0;
+    virtual Errors get_error(const std::string& id) = 0;
 };
 
 class NetworkError : public IError {
 public:
     NetworkError();
     virtual ~NetworkError();
-    void handle(Errors e);
+    void handle(const std::string& id, Errors e);
+    void reg(const std::string& id);
+    void unreg(const std::string& id);
+    Errors get_error(const std::string& id);
+    void dump();
 private:
+    std::unordered_map<std::string, Errors> _obj_status;
 };
 
 #endif  // ERROR_HANDLER_H

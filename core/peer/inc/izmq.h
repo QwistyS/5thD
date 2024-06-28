@@ -3,6 +3,9 @@
 
 #include "5thderror_handler.h"
 #include "keys.h"
+#define ZMQWRAPPER_ID "ZMQWRAPPER_ID"
+
+std::string get_id();
 
 /**
  * @brief ZMQ CURVE API for generating the keys
@@ -27,14 +30,17 @@ public:
 class ZMQWContext : public IContext {
 public:
     virtual ~ZMQWContext();
-    ZMQWContext(IError* error) : _context(nullptr), _error(error) { set_context(); };
+    ZMQWContext(IError* error) : _context(nullptr), _error(error) { 
+        _init(); };
     void* get_context();
 
 private:
-    void close();
-    void set_context();
+    void _close();
+    void _set_context();
+    void _init();
     void* _context;
     IError* _error;
+    std::string _self_id;
 };
 
 #endif  // IZMQ_H

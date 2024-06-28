@@ -1,18 +1,12 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
-#include <array>
-#include "transmitter.h"
+#include <string.h>
 
-struct Connection {
-    enum Transmitters{
-        USER = 0,
-        PROTO,
-        TOTAL
-    };
-    std::vector<ZMQTransmitter> clients;
-    Transmitters variant;
-    bool trusted;
-};
+typedef struct {
+    char id[64];
+    std::string addr;
+    uint16_t port;
+} conn_info_t;
 
 #endif  // CONNECTION_H

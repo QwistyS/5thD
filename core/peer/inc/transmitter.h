@@ -3,6 +3,7 @@
 
 #include "5thderror_handler.h"
 #include "izmq.h"
+#include "connection.h"
 
 #define GENERIC_DATA "Heartbeat"
 
@@ -17,7 +18,6 @@ public:
     virtual void connect(const std::string& ip, int port) = 0;
     virtual void close() = 0;
     virtual void send(void* data, size_t data_length) const = 0;
-    virtual bool req_data(const char* OP) const = 0;
 };
 
 /**
@@ -34,9 +34,9 @@ public:
     /**
      * @brief Constructor
      */
-    ZMQTransmitter(IContext* ctx, int socket_type, IError* error)
-        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error_handler(error) {
-        _init();
+    ZMQTransmitter(IContext* ctx, int socket_type, const std::string& id, IError* error)
+        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error(error) {
+        _init(id);
     };
 
     /**
@@ -62,22 +62,17 @@ public:
     void send(void* data, size_t data_length) const override;
 
     /**
-     * @brief Checks if the connection is alive.
-     * @return True if connected, false otherwise.
-     */
-    bool req_data(const char* OP) const override;
-    
-    /**
      * @brief
      */
     void set_curve_client_options(const char* server_public_key);
     IContext* _context;
-    IError* _error_handler;
+    IError* _error;
     void* _socket;
     int _socket_type;
+    conn_info_t _self_info;
 
     void send_stream(void* data, size_t data_length, int chunk_size);
-    void _init();
+    void _init(const std::string& id);
     void _clear_buffers();
 };
 

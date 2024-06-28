@@ -3,6 +3,8 @@
 
 #include<string>
 
+std::string sha256(const std::string& str);
+
 int is_port_available(int port);
 
 std::string get_local_ip();

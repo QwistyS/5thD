@@ -2,9 +2,12 @@
 #include "5thdlogger.h"
 #include "5thderrors.h"
 
+#include <openssl/evp.h>
+#include <openssl/err.h>
 #include <iostream>
 #include <string>
-#include <cstring>
+#include <sstream>
+#include <iomanip>
 
 #include <arpa/inet.h>  //INET6_ADDRSTRLEN
 #include <ifaddrs.h>
@@ -27,6 +30,44 @@
 #include <sys/types.h>
 #endif
 
+std::string sha256(const std::string& str) {
+    unsigned char hash[EVP_MAX_MD_SIZE]; // Buffer to hold the hash
+    unsigned int hash_len;               // Length of the resulting hash
+
+    // Initialize OpenSSL's digest
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    if (mdctx == NULL) {
+        throw std::runtime_error("EVP_MD_CTX_new failed");
+    }
+
+    // Initialize the context for SHA-256
+    if (1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL)) {
+        EVP_MD_CTX_free(mdctx);
+        throw std::runtime_error("EVP_DigestInit_ex failed");
+    }
+
+    // Provide the data to be hashed
+    if (1 != EVP_DigestUpdate(mdctx, str.c_str(), str.size())) {
+        EVP_MD_CTX_free(mdctx);
+        throw std::runtime_error("EVP_DigestUpdate failed");
+    }
+
+    // Finalize the hash
+    if (1 != EVP_DigestFinal_ex(mdctx, hash, &hash_len)) {
+        EVP_MD_CTX_free(mdctx);
+        throw std::runtime_error("EVP_DigestFinal_ex failed");
+    }
+
+    // Clean up
+    EVP_MD_CTX_free(mdctx);
+
+    // Convert the hash to a hexadecimal string
+    std::stringstream ss;
+    for (unsigned int i = 0; i < hash_len; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    return ss.str();
+}
 
 int is_port_available(int port) {
     int _port = port;
