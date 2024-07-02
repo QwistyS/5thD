@@ -5,18 +5,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THIRDP "third_parties/")
 
+
 # Include directories for core module headers
 include_directories(core/
-    core/peer/inc
-)
-file(GLOB CORE_SRC_FILES 
-    "core/*.cpp"
-    "core/peer/src/*.cpp"
+core/peer/inc
 )
 
+file(GLOB CORE_SRC_FILES 
+"core/*.cpp"
+"core/peer/src/*.cpp"
+)
+
+
 # Args parser
-add_subdirectory(${THIRDP}/argumentum)
-include_directories(${THIRDP}argumentum/include)
+add_subdirectory(${THIRDP}/curl)
+include_directories(${THIRDP}curl/include)
 
 # Manually specify the include directories and library paths for libsodium
 set(LIBSODIUM_INCLUDE_DIRS /usr/local/include)
@@ -67,12 +70,15 @@ target_link_libraries(${PROJECT_NAME}
     libzmq-static
     OpenSSL::SSL
     miniupnpc::miniupnpc
+    CURL::libcurl
     ${LIBSODIUM_LIBRARIES}
 )
 
 # Ensure CMake uses the correct linker and include paths for cross-compiling
 if(CMAKE_CROSSCOMPILING)
-    set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 endif()
+
+add_subdirectory(5thD_Software_Bus)

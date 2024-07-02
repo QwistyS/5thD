@@ -1,13 +1,14 @@
-#include "net_helpers.h"
-#include "5thdlogger.h"
 #include "5thderrors.h"
+#include "5thdlogger.h"
+#include "net_helpers.h"
+#include <curl/curl.h>
 
-#include <openssl/evp.h>
 #include <openssl/err.h>
-#include <iostream>
-#include <string>
-#include <sstream>
+#include <openssl/evp.h>
 #include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include <arpa/inet.h>  //INET6_ADDRSTRLEN
 #include <ifaddrs.h>
@@ -21,21 +22,21 @@
 #include <upnpcommands.h>
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-#pragma comment(lib, "Ws2_32.lib")
-#pragma comment(lib, "Iphlpapi.lib")
+#    include <iphlpapi.h>
+#    include <winsock2.h>
+#    include <ws2tcpip.h>
+#    pragma comment(lib, "Ws2_32.lib")
+#    pragma comment(lib, "Iphlpapi.lib")
 #else
-#include <sys/types.h>
+#    include <sys/types.h>
 #endif
 
 std::string sha256(const std::string& str) {
-    unsigned char hash[EVP_MAX_MD_SIZE]; // Buffer to hold the hash
-    unsigned int hash_len;               // Length of the resulting hash
+    unsigned char hash[EVP_MAX_MD_SIZE];  // Buffer to hold the hash
+    unsigned int hash_len;                // Length of the resulting hash
 
     // Initialize OpenSSL's digest
-    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
     if (mdctx == NULL) {
         throw std::runtime_error("EVP_MD_CTX_new failed");
     }
@@ -64,9 +65,49 @@ std::string sha256(const std::string& str) {
     // Convert the hash to a hexadecimal string
     std::stringstream ss;
     for (unsigned int i = 0; i < hash_len; i++) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int) hash[i];
     }
     return ss.str();
+}
+
+// Callback function to handle response data
+size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    // Assuming response data is a null-terminated string
+    std::string *response = static_cast<std::string*>(userdata);
+    response->append(ptr, size * nmemb);
+    return size * nmemb;
+}
+
+std::string get_external_addr() {
+    CURL *curl = curl_easy_init();
+    std::string ip_address;
+
+    if (curl) {
+        // Set URL to fetch external IP
+        curl_easy_setopt(curl, CURLOPT_URL, "https://api.ipify.org");
+
+        // Follow HTTP redirects if necessary
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+        // Response data callback
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
+        // Response data container
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ip_address);
+
+        // Perform the request
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        // Clean up
+        curl_easy_cleanup(curl);
+    } else {
+        std::cerr << "Failed to initialize libcurl." << std::endl;
+    }
+
+    return ip_address;
 }
 
 int is_port_available(int port) {
@@ -125,7 +166,7 @@ std::string get_local_ip() {
     serv.sin_addr.s_addr = inet_addr(googleDnsIp);
     serv.sin_port = htons(dnsPort);
 
-    int err = connect(sock, (const sockaddr*)&serv, sizeof(serv));
+    int err = connect(sock, (const sockaddr*) &serv, sizeof(serv));
 
     if (err < 0) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -139,7 +180,7 @@ std::string get_local_ip() {
 
     sockaddr_in name;
     socklen_t namelen = sizeof(name);
-    err = getsockname(sock, (sockaddr*)&name, &namelen);
+    err = getsockname(sock, (sockaddr*) &name, &namelen);
 
     if (err < 0) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -170,7 +211,7 @@ std::string get_iface_name(const std::string& local_addr) {
     PIP_ADAPTER_ADDRESSES pAddresses = nullptr;
     DWORD dwRetVal = 0;
 
-    pAddresses = (IP_ADAPTER_ADDRESSES*)malloc(outBufLen);
+    pAddresses = (IP_ADAPTER_ADDRESSES*) malloc(outBufLen);
     if (pAddresses == nullptr) {
         std::cerr << "Memory allocation failed for IP_ADAPTER_ADDRESSES struct" << std::endl;
         return "";
@@ -178,7 +219,7 @@ std::string get_iface_name(const std::string& local_addr) {
 
     if ((dwRetVal = GetAdaptersAddresses(family, flags, nullptr, pAddresses, &outBufLen)) == ERROR_BUFFER_OVERFLOW) {
         free(pAddresses);
-        pAddresses = (IP_ADAPTER_ADDRESSES*)malloc(outBufLen);
+        pAddresses = (IP_ADAPTER_ADDRESSES*) malloc(outBufLen);
         if (pAddresses == nullptr) {
             std::cerr << "Memory allocation failed for IP_ADAPTER_ADDRESSES struct" << std::endl;
             return "";
@@ -188,10 +229,12 @@ std::string get_iface_name(const std::string& local_addr) {
     if ((dwRetVal = GetAdaptersAddresses(family, flags, nullptr, pAddresses, &outBufLen)) == NO_ERROR) {
         PIP_ADAPTER_ADDRESSES pCurrAddresses = pAddresses;
         while (pCurrAddresses) {
-            for (PIP_ADAPTER_UNICAST_ADDRESS pUnicast = pCurrAddresses->FirstUnicastAddress; pUnicast != nullptr; pUnicast = pUnicast->Next) {
+            for (PIP_ADAPTER_UNICAST_ADDRESS pUnicast = pCurrAddresses->FirstUnicastAddress; pUnicast != nullptr;
+                 pUnicast = pUnicast->Next) {
                 char buffer[INET_ADDRSTRLEN];
                 DWORD bufferLength = INET_ADDRSTRLEN;
-                WSAAddressToStringA(pUnicast->Address.lpSockaddr, (DWORD)pUnicast->Address.iSockaddrLength, nullptr, buffer, &bufferLength);
+                WSAAddressToStringA(pUnicast->Address.lpSockaddr, (DWORD) pUnicast->Address.iSockaddrLength, nullptr,
+                                    buffer, &bufferLength);
                 if (ipAddress == buffer) {
                     std::wstring ws(pCurrAddresses->FriendlyName);
                     std::string interfaceName(ws.begin(), ws.end());
@@ -210,7 +253,7 @@ std::string get_iface_name(const std::string& local_addr) {
     }
     return "";
 #else
-    struct ifaddrs* ifaddr, *ifa;
+    struct ifaddrs *ifaddr, *ifa;
     int family;
     if (getifaddrs(&ifaddr) == -1) {
         perror("getifaddrs");
@@ -218,15 +261,15 @@ std::string get_iface_name(const std::string& local_addr) {
     }
 
     for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == nullptr) continue;
+        if (ifa->ifa_addr == nullptr)
+            continue;
         family = ifa->ifa_addr->sa_family;
 
         if (family == AF_INET || family == AF_INET6) {
             char host[NI_MAXHOST];
             int s = getnameinfo(ifa->ifa_addr,
-                                (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                                                      sizeof(struct sockaddr_in6),
-                                host, NI_MAXHOST, nullptr, 0, NI_NUMERICHOST);
+                                (family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6), host,
+                                NI_MAXHOST, nullptr, 0, NI_NUMERICHOST);
             if (s != 0) {
                 std::cerr << "getnameinfo() failed: " << gai_strerror(s) << std::endl;
                 continue;
@@ -248,14 +291,14 @@ bool set_port_forward(int external_port, const std::string& internal_ip, int int
     struct UPNPDev* devlist;
     struct UPNPUrls urls;
     struct IGDdatas data;
-    int error = 0;
+    char lanaddr[64];
+    int error = -1;
 
     // Discover UPnP devices
-    devlist = upnpDiscover(2000, NULL, iface.c_str(), 0, 0, 0, &error);
-
+    devlist = upnpDiscover(2000, NULL, NULL, 0, 0, 2, NULL);
     if (devlist) {
         // Get the URLs and IGD data for UPnP device
-        if (UPNP_GetValidIGD(devlist, &urls, &data, NULL, 0) == 1) {
+        if (UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr)) == 1) {
             // Successfully found a UPnP enabled device (Internet Gateway Device)
 
             // Try to add a port mapping
@@ -264,22 +307,21 @@ bool set_port_forward(int external_port, const std::string& internal_ip, int int
                                     std::to_string(internal_port).c_str(), internal_ip.c_str(), NULL, "TCP", NULL, "0");
 
             if (error == UPNPCOMMAND_SUCCESS) {
-                std::cout << "Successfully opened port " << external_port << " and forwarded to " << internal_ip << ":"
-                          << internal_port << std::endl;
+                DEBUG("Successfully opened port {} and forwarded to {}:{}", external_port, internal_ip, internal_port);
             } else {
-                std::cerr << "Failed to open port. Error code: " << error << std::endl;
+                ERROR("Failed to open port. Error code: {}", error);
             }
 
             // Free URLs and data structures
             FreeUPNPUrls(&urls);
         } else {
-            std::cerr << "No valid UPnP Internet Gateway Device found." << std::endl;
+            ERROR("No valid UPnP Internet Gateway Device found.");
         }
 
         // Free discovered devices list
         freeUPNPDevlist(devlist);
     } else {
-        std::cerr << "No UPnP devices found." << std::endl;
+        ERROR("No UPnP devices found.");
         return false;
     }
 

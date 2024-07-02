@@ -23,7 +23,7 @@ public:
 class Receiver : public IReceiver {
 public:
     virtual ~Receiver();
-    Receiver(int port, IContext* ctx, IError* error) : _ctx(ctx), _port(port), _error(error), _socket_rout(nullptr) {
+    Receiver(std::string addr, int port, IContext* ctx, IError* error) : _addr(addr), _port(port), _ctx(ctx), _error(error), _socket_rout(nullptr) {
         _init();
     };
     void worker();
@@ -41,6 +41,7 @@ private:
     std::thread _worker_thread;
     thread_args_t _thread_args;
     std::string _self_id;
+    std::string _addr;
     void _init();
 };
 

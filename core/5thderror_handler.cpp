@@ -36,6 +36,16 @@ Errors NetworkError::get_error(const std::string& id) {
 
 void NetworkError::dump() {
     for (auto& it : _obj_status) {
-        DEBUG("ID {} STATUS {}", it.first, (int)it.second);
+        DEBUG("ID {} STATUS {}", it.first, (int) it.second);
     }
+}
+
+bool NetworkError::find(Errors e) {
+    for (auto& it : _obj_status) {
+        if (it.second == e) {
+            DEBUG("Object {} Error {}", it.first, (int) it.second);
+            return true;
+        }
+    }
+    return false;
 }

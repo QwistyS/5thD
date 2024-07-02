@@ -15,5 +15,6 @@ private:
 
 #define DEBUG(...) Log::get_logger()->debug(__VA_ARGS__)
 #define ERROR(...) Log::get_logger()->error(__VA_ARGS__)
+#define WARN(...) Log::get_logger()->warn(__VA_ARGS__)
 
 #endif  // LOGGER_MANAGER_H

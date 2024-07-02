@@ -23,6 +23,7 @@ public:
     void unreg(const std::string& id);
     Errors get_error(const std::string& id);
     void dump();
+    bool find(Errors e);
 private:
     std::unordered_map<std::string, Errors> _obj_status;
 };

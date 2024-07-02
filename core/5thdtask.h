@@ -4,6 +4,8 @@
 enum Task {
     TASK_DEFAULT = 0,
     TASK_LISTEN,
+    TASK_PORTFORWARD,
+    TASK_RECEIVER_REINIT,
     TASK_TOTAL
 };
 

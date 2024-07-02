@@ -13,6 +13,6 @@
 [submodule "third_parties/third_parties/libsodium"]
 	path = third_parties/third_parties/libsodium
 	url = https://github.com/jedisct1/libsodium.git
-[submodule "third_parties/argumentum"]
-	path = third_parties/argumentum
-	url = https://github.com/mmahnic/argumentum.git
+[submodule "third_parties/curl"]
+	path = third_parties/curl
+	url = https://github.com/curl/curl.git

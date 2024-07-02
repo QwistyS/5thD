@@ -26,13 +26,12 @@ typedef struct {
  */
 class Peer {
 public:
-    Peer(int port, IError* e) : _port(port), _ctx_out(e), _errors(e) { _init(); };
+    Peer(IError* e) : _ctx_out(e), _errors(e) { _init(); };
 
     ~Peer();
-    void task(conn_info_t info, Task task);
+    void task(conn_info_t *info, Task task);
 
 private:
-    int _port;
     ZMQWContext _ctx_out;
     IError* _errors;
     std::vector<client_t> _connections;
@@ -42,7 +41,10 @@ private:
     std::string _self_id;
     void _init();
 
-    void handle_listen(conn_info_t info);
+    void handle_listen(const conn_info_t* info);
+    void handle_upnp(const conn_info_t* info);
+    void handle_receiver_reinit(const conn_info_t* info);
+    void init_receiver(const conn_info_t* info);
 };
 
 #endif  // PEER_H
