@@ -1,8 +1,9 @@
+#include "peer.h"
+
 #include <zmq.h>
 #include "5thderror_handler.h"
 #include "5thdlogger.h"
 #include "net_helpers.h"
-#include "peer.h"
 #include "qwistys_macro.h"
 
 static int id_counter = 0;
@@ -35,8 +36,10 @@ void Peer::task(conn_info_t* info, Task task) {
 
 void Peer::_init() {
     _self_id = PEER_ID + std::to_string(id_counter++);
+    std::string ipc_id = _self_id + "ipc";
     _errors->reg(_self_id);
     _errors->handle(_self_id, Errors::OK);
+    _ipc_client = std::make_unique<IpcClient>(_ctx_out.get_context(), ipc_id, _errors);
 }
 
 void Peer::handle_listen(const conn_info_t* info) {

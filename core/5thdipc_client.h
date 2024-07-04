@@ -2,27 +2,24 @@
 #define IPC_CLIENT_H
 
 #include <thread>
-#include "5thderror_handler.h"
+#include "transmitter.h"
 #include "5thdipcmsg.h"
-#include "izmq.h"
 
 class IpcClient {
 public:
-    IpcClient(void* ctx, std::string id, IError* e)
-        : _context(ctx), _self_id(id), _error(e), _socket(nullptr), _poll(true) {
+    IpcClient(ITransmitter *transmitter)
+        : _transmitter(transmitter), _error(_drp), _poll(1) {
         _init();
     };
     ~IpcClient();
     void send(const ipc_msg_t* msg);
-
+protected:
+    ErrorHandler _error;
+    DisasterRecoveryPlan _drp;
 private:
-    void* _socket;
-    void* _context;
-    IError* _error;
-    std::string _self_id;
+    ITransmitter* _transmitter;
     std::thread _worker_thread;
-    bool _poll;
-    void _worker();
+    int _poll;
     void _init();
 };
 

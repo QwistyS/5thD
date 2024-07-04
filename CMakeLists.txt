@@ -67,10 +67,7 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Gui 
     Qt6::Widgets
     spdlog::spdlog
-    libzmq-static
-    OpenSSL::SSL
-    miniupnpc::miniupnpc
-    CURL::libcurl
+    libzmq
     ${LIBSODIUM_LIBRARIES}
 )
 
@@ -81,4 +78,5 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 endif()
 
+# add_subdirectory(5thD_Peer)
 add_subdirectory(5thD_Software_Bus)

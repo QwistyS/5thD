@@ -9,6 +9,7 @@
 #include "receiver.h"
 #include "transmitter.h"
 #include "5thdtask.h"
+#include "5thdipc_client.h"
 
 #define START_PORT 7099
 #define CACHE_SIZE 100
@@ -36,7 +37,7 @@ private:
     IError* _errors;
     std::vector<client_t> _connections;
     std::unique_ptr<Receiver> _receiver;
-    std::unordered_set<void*> _ipc_connections;
+    std::unique_ptr<IpcClient> _ipc_client;
     std::unique_ptr<LRU_Cache<std::string, client_t>> _conn_cache;
     std::string _self_id;
     void _init();

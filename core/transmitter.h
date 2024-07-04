@@ -3,9 +3,6 @@
 
 #include "5thderror_handler.h"
 #include "izmq.h"
-#include "connection.h"
-
-#define GENERIC_DATA "Heartbeat"
 
 /**
  * @brief Interface for the transmitter.
@@ -34,9 +31,9 @@ public:
     /**
      * @brief Constructor
      */
-    ZMQTransmitter(IContext* ctx, int socket_type, const std::string& id, IError* error)
-        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error(error) {
-        _init(id);
+    ZMQTransmitter(IContext* ctx, ISocket* sock, std::string identity)
+        : _context(ctx), _socket(sock), _error(_drp), _identity(identity) {
+        _init();
     };
 
     /**
@@ -65,15 +62,20 @@ public:
      * @brief
      */
     void set_curve_client_options(const char* server_public_key);
-    IContext* _context;
-    IError* _error;
-    void* _socket;
-    int _socket_type;
-    conn_info_t _self_info;
 
-    void send_stream(void* data, size_t data_length, int chunk_size);
-    void _init(const std::string& id);
-    void _clear_buffers();
+    void worker(int* until, void(*cb)(void *socket));
+
+protected:
+    ErrorHandler _error;
+    DisasterRecoveryPlan _drp;
+
+private:
+    IContext* _context;
+    ISocket* _socket;
+    std::string _identity;
+    void _init();
+    VoidResult _connect(const std::string& ip, int port);
+    bool _handle_connect();
 };
 
 #endif  // TRANSMITTER_H_

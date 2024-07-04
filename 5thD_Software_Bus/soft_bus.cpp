@@ -2,10 +2,8 @@
 #include <memory>
 #include <thread>
 #include "signal.h"
+#include <zmq.h>
 
-#include "5thdlogger.h"
-#include "5thderrors.h"
-#include "5thderror_handler.h"
 #include "software_bus.h"
 
 // Global flag to indicate if termination signal received
@@ -23,16 +21,14 @@ int main() {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     Log::init();
-    NetworkError error;
 
     int duration_ms = 100;
+    ZMQWContext ctx;
+    ZMQWSocket socket(&ctx, ZMQ_ROUTER);
+    ZMQReceiver recv(IPC_ROUTER_ADDR, IPC_ROUTER_PORT, &ctx, &socket);
+    std::unique_ptr<ZMQBus> bus = std::make_unique<ZMQBus>(&recv);
 
-    std::unique_ptr<ZMQBus> bus = std::make_unique<ZMQBus>(IPC_ROUTER_ADDR, 0, &error);
-
-    while (termination_requested) {
-        bus->run();
-        std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
-    }
+    bus->run();
 
     DEBUG("Clearing router...");
     return 0;
