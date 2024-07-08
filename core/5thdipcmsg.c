@@ -10,4 +10,5 @@ const char* CLIENTS_IDS[] = {
     "manager",
     "peerxxx",
     "uixxxxx",
+    "ipcrout",
 };

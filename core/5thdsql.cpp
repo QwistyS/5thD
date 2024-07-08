@@ -1,7 +1,9 @@
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include "5thdsql.h"
+#include "qwistys_macro.h"
 
 DatabaseAccess::~DatabaseAccess() {
     auto ret = close();
@@ -25,7 +27,7 @@ VoidResult DatabaseAccess::open() {
         ERROR("Failed to open database. Error: {}", std::string(sqlite3_errmsg(_db)));
         sqlite3_close(_db);
         _db = nullptr;
-        return Err(ErrorCode::FAIL_OPEN_DB_FILE, "Fail to open db file: " + _db_path);
+        return Err(ErrorCode::FAIL_OPEN_DB_FILE, "Fail to open db file: " + _db_path, Severity::HIGH);
     }
 
     rc = sqlite3_key(_db, _key, _key_num_byte);
@@ -33,7 +35,7 @@ VoidResult DatabaseAccess::open() {
         ERROR("Failed decrypt. Error: {}", std::string(sqlite3_errmsg(_db)));
         sqlite3_close(_db);
         _db = nullptr;
-        return Err(ErrorCode::FAIL_DECRYPT_DB, "fail to decrypt the database");
+        return Err(ErrorCode::FAIL_DECRYPT_DB, "fail to decrypt the database", Severity::HIGH);
     }
 
     // Set WAL journal mode for better concurrency
@@ -52,19 +54,60 @@ VoidResult DatabaseAccess::open() {
 }
 
 VoidResult DatabaseAccess::close() {
-    if (_db) {
-        sqlite3_close(_db);
+    if (!_db) {
+        DEBUG("Database already closed");
+        return Ok();
     }
+
+    // Finalize all prepared statements
+    sqlite3_stmt* stmt;
+    while ((stmt = sqlite3_next_stmt(_db, nullptr)) != nullptr) {
+        sqlite3_finalize(stmt);
+    }
+
+    // Attempt to close the database
+    int rc = sqlite3_close(_db);
+    if (rc != SQLITE_OK) {
+        std::string error_msg = sqlite3_errmsg(_db);
+        ERROR("Failed to close database. Error code: {}. Error message: {}", rc, error_msg);
+
+        // If there are still statements or unfinalized resources
+        if (rc == SQLITE_BUSY) {
+            ERROR("Database is busy. There might be unfinalized statements or unreleased resources.");
+
+            // Attempt to get information about unfinalized statements
+            sqlite3_stmt* stmt;
+            while ((stmt = sqlite3_next_stmt(_db, nullptr)) != nullptr) {
+                const char* sql = sqlite3_sql(stmt);
+                ERROR("Unfinalized statement: {}", sql ? sql : "Unknown");
+            }
+        }
+
+        return Err(ErrorCode::FAIL_CLOSE_DB, "Failed to close database: " + error_msg);
+    }
+
+    _db = nullptr;
+    DEBUG("Database closed successfully");
     return Ok();
 }
 
 Result<sqlite3_stmt*> DatabaseAccess::prepare(const std::string& sql) {
+    DEBUG("Preparing SQL: {}", sql);
+
+    if (!_db) {
+        ERROR("Database connection is null");
+        return Err<sqlite3_stmt*>(ErrorCode::NO_VALID_DB, "Database connection is null");
+    }
+
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
+        ERROR("Failed to prepare statement. Error code: {}. Error message: {}", rc, sqlite3_errmsg(_db));
         return Err<sqlite3_stmt*>(ErrorCode::DB_PREPARE_STATEMENT_FAILED,
                                   "Failed to prepare statement: " + std::string(sqlite3_errmsg(_db)));
     }
+
+    DEBUG("Statement prepared successfully");
     return Ok<sqlite3_stmt*>(std::move(stmt));
 }
 
@@ -78,6 +121,30 @@ VoidResult DatabaseAccess::execute(sqlite3_stmt* stmt) {
     return Ok();
 }
 
+VoidResult DatabaseAccess::bind_int(sqlite3_stmt* stmt, int index, int value) {
+    int rc = sqlite3_bind_int(stmt, index, value);
+    if (rc != SQLITE_OK) {
+        return Err(ErrorCode::DB_BIND_FAILED, "Failed to bind integer: " + std::string(sqlite3_errmsg(_db)));
+    }
+    return Ok();
+}
+
+VoidResult DatabaseAccess::bind_text(sqlite3_stmt* stmt, int index, const std::string& value) {
+    int rc = sqlite3_bind_text(stmt, index, value.c_str(), -1, SQLITE_TRANSIENT);
+    if (rc != SQLITE_OK) {
+        return Err(ErrorCode::DB_BIND_FAILED, "Failed to bind text: " + std::string(sqlite3_errmsg(_db)));
+    }
+    return Ok();
+}
+
+VoidResult DatabaseAccess::bind_null(sqlite3_stmt* stmt, int index) {
+    int rc = sqlite3_bind_null(stmt, index);
+    if (rc != SQLITE_OK) {
+        return Err(ErrorCode::DB_BIND_FAILED, "Failed to bind null: " + std::string(sqlite3_errmsg(_db)));
+    }
+    return Ok();
+}
+
 VoidResult DatabaseAccess::bind_blob(sqlite3_stmt* stmt, int index, const std::vector<unsigned char>& data) {
     int rc = sqlite3_bind_blob(stmt, index, data.data(), data.size(), SQLITE_STATIC);
     if (rc != SQLITE_OK) {
@@ -86,34 +153,67 @@ VoidResult DatabaseAccess::bind_blob(sqlite3_stmt* stmt, int index, const std::v
     return Ok();
 }
 
-VoidResult DatabaseAccess::add_scheme(const std::string& scriptPath) {
+VoidResult DatabaseAccess::add_scheme(const std::string& sql_script_path) {
     if (!_db) {
         return Err(ErrorCode::NO_VALID_DB, "Db pointer is null");
     }
-    std::string schemaSQL = _read_scheme_script(scriptPath);
-    auto ret = exec(schemaSQL);
-    if (ret.is_err()) {
-        _error.handle_error(ret.error());
+    std::string schemaSQL = _read_scheme_script(sql_script_path);
+
+    char* errmsg = nullptr;
+    int rc = sqlite3_exec(_db, schemaSQL.c_str(), nullptr, nullptr, &errmsg);
+
+    if (rc != SQLITE_OK) {
+        std::string error_message = errmsg ? errmsg : "Unknown error";
+        sqlite3_free(errmsg);
+        ERROR("SQL error: {}", error_message);
+        return Err(ErrorCode::FAIL_CREATE_DB_SCHEME, "Failed to create db scheme: " + error_message);
     }
 
+    DEBUG("Schema applied successfully");
     return Ok();
 }
 
-VoidResult DatabaseAccess::qquery(const std::string& sql, sdbret_t& result) const {
+VoidResult DatabaseAccess::verify_tables() {
+    const char* check_tables_sql =
+        "SELECT name FROM sqlite_master WHERE type='table' AND (name='key_types' AND name='module_keys');";
+
+    char* errmsg = nullptr;
+    char** results = nullptr;
+    int rows, columns;
+
+    int rc = sqlite3_get_table(_db, check_tables_sql, &results, &rows, &columns, &errmsg);
+
+    if (rc != SQLITE_OK) {
+        std::string error_message = errmsg ? errmsg : "Unknown error";
+        sqlite3_free(errmsg);
+        ERROR("SQL error: {}", error_message);
+        return Err(ErrorCode::DB_ERROR, "Failed to verify tables: " + error_message);
+    }
+
+    std::set<std::string> found_tables;
+    for (int i = 1; i <= rows; i++) {  // Start from 1 to skip column names
+        found_tables.insert(results[i * columns]);
+    }
+
+    sqlite3_free_table(results);
+
+    if (found_tables.size() != 2) {
+        ERROR("Missing tables. Found: {}", found_tables.size());
+        for (const auto& table : found_tables) {
+            DEBUG("Found table: {}", table);
+        }
+        return Err(ErrorCode::DB_MISSING_TABLES, "Not all required tables were created");
+    }
+
+    DEBUG("All required tables verified");
+    return Ok();
+}
+
+VoidResult DatabaseAccess::query(sqlite3_stmt* stmt, sdbret_t& result) const {
     result.flush();
 
-    if (!_db) {
-        return Err(ErrorCode::NO_VALID_DB, "Db pointer is null");
-    }
-
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        ERROR("Db error {}", std::string(sqlite3_errmsg(_db)));
-        return Err(ErrorCode::DB_ERROR, "Db prepare");
-    }
-
     int columnCount = sqlite3_column_count(stmt);
+    int rc;
 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         SecureQueryResult::Row row;
@@ -134,12 +234,10 @@ VoidResult DatabaseAccess::qquery(const std::string& sql, sdbret_t& result) cons
     }
 
     if (rc != SQLITE_DONE) {
-        sqlite3_finalize(stmt);
         ERROR("Db error {}", std::string(sqlite3_errmsg(_db)));
         return Err(ErrorCode::DB_ERROR, "Db step");
     }
 
-    sqlite3_finalize(stmt);
     return Ok();
 }
 
@@ -148,21 +246,36 @@ VoidResult DatabaseAccess::exec(const std::string& sql) {
         return Err(ErrorCode::NO_VALID_DB, "Db pointer is null");
     }
 
-    char* errorMessage = nullptr;
-    int rc = sqlite3_exec(_db, sql.c_str(), nullptr, nullptr, &errorMessage);
+    DEBUG("Executing SQL: {}", sql);
+
+    sqlite3_stmt* stmt = nullptr;
+    int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
-        std::string error(errorMessage);
-        sqlite3_free(errorMessage);
-        ERROR("Db exec error {}", error);
-        return Err(ErrorCode::FAIL_DB_EXEC, "Fail db exec");
+        ERROR("Failed to prepare statement: {} (Error code: {})", sqlite3_errmsg(_db), rc);
+        return Err(ErrorCode::DB_PREPARE_STATEMENT_FAILED,
+                   "Failed to prepare statement: " + std::string(sqlite3_errmsg(_db)));
     }
+
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        // For PRAGMA statements, we might get here. Just continue.
+    }
+
+    if (rc != SQLITE_DONE && rc != SQLITE_ROW) {
+        ERROR("Failed to execute statement: {} (Error code: {})", sqlite3_errmsg(_db), rc);
+        sqlite3_finalize(stmt);
+        return Err(ErrorCode::DB_STATEMENT_EXECUTION_FAILED,
+                   "Failed to execute statement: " + std::string(sqlite3_errmsg(_db)));
+    }
+
+    sqlite3_finalize(stmt);
+    DEBUG("SQL executed successfully");
     return Ok();
 }
 
-std::string DatabaseAccess::_read_scheme_script(const std::string& filePath) {
-    std::ifstream file(filePath);
+std::string DatabaseAccess::_read_scheme_script(const std::string& sql_script_path) {
+    std::ifstream file(sql_script_path);
     if (!file) {
-        ERROR("Unable to open file: {}", filePath);
+        ERROR("Unable to open file: {}", sql_script_path);
         std::abort();
     }
     std::stringstream buffer;
@@ -171,10 +284,14 @@ std::string DatabaseAccess::_read_scheme_script(const std::string& filePath) {
 }
 
 void DatabaseAccess::_init(const std::string& path, const std::string encryption_key) {
+    _setup_drp();
+
     _key_num_byte = encryption_key.length();
+
     _key = (unsigned char*) sodium_malloc(_key_num_byte);
     if (_key == nullptr) {
-        throw std::runtime_error("Failed to allocate secure memory for key");
+        ERROR("Failed to allocate secure memory for key");
+        std::abort();
     }
     memcpy(_key, encryption_key.c_str(), _key_num_byte);
 
@@ -184,22 +301,36 @@ void DatabaseAccess::_init(const std::string& path, const std::string encryption
         DEBUG("New data base detected ... Initializing");
         auto ret = _new_db();
         if (ret.is_err()) {
-            _error.handle_error(ret.error());
+            if (!_error.handle_error(ret.error()))
+                std::abort();
         }
     }
+    open();
 }
 
 VoidResult DatabaseAccess::_new_db() {
     auto ret_open = open();
     if (ret_open.is_err()) {
-        _error.handle_error(ret_open.error());
+        if (!_error.handle_error(ret_open.error()))
+            std::abort();
     }
 
-    auto ret_scheme = add_scheme("/Users/danielmor/src/5thD/db_scripts/table_keys.sql");
-    if (ret_scheme.is_err()) {
-        return Err(ErrorCode::FAIL_CREATE_DB_SCHEME, "Fail to create db scheme");
+    // The path is meanwhile
+    QWISTYS_TODO_MSG("create a proper links to path for sql scripts");
+    std::string sql_script_path("/Users/danielmor/src/5thD/db_scripts/table_keys.sql");
+    if (!std::filesystem::exists(sql_script_path)) {
+        ERROR("File sql script does not exist");
+        std::abort();
     }
-    return Ok();
+    auto ret_scheme = add_scheme(sql_script_path);
+    if (ret_scheme.is_err()) {
+        return Err(ErrorCode::FAIL_CREATE_DB_SCHEME, "Fail to create db scheme", Severity::HIGH);
+    }
+
+    auto verify_result = verify_tables();
+    if (verify_result.is_err()) {
+        ERROR("Failed to verify tables: {}", verify_result.error().message());
+    }
 }
 
 void DatabaseAccess::_setup_drp() {
@@ -207,11 +338,28 @@ void DatabaseAccess::_setup_drp() {
         WARN("Trying to recover init db");
         return _handle_new_db();
     });
+    _drp.register_recovery_action(ErrorCode::FAIL_OPEN_DB_FILE, [this]() {
+        WARN("Trying to recover open db");
+        return _handle_open();
+    });
+    _drp.register_recovery_action(ErrorCode::FAIL_DECRYPT_DB, [this]() {
+        WARN("Trying to recover decrypt db");
+        return _handle_open();
+    });
+    _drp.register_recovery_action(ErrorCode::FAIL_CREATE_DB_SCHEME, [this]() {
+        WARN("Trying to recover decrypt db");
+        return _handle_add_scheme();
+    });
+}
+
+bool DatabaseAccess::_handle_open() {
+    return false;
+}
+
+bool DatabaseAccess::_handle_add_scheme() {
+    return false;
 }
 
 bool DatabaseAccess::_handle_new_db() {
-    if (1) {
-        return false;
-    }
-    return true;
+    return false;
 }

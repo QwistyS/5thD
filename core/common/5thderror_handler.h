@@ -49,9 +49,12 @@ enum class ErrorCode {
     FAIL_UPDATE_KEY,
     FAIL_GET_KEY,
     FAIL_REMOVE_KEY,
+    KEY_TYPE_NOT_FOUND,
     NO_VALID_DB,
+    DB_MISSING_TABLES,
     FAIL_DB_EXEC,
     DB_ERROR,
+    FAIL_CLOSE_DB,
     MONKEY,
     TOTAL
 };
@@ -119,8 +122,8 @@ Result<T> Ok(T value) {
 };
 
 template <typename T>
-Result<T> Err(ErrorCode code, const std::string& message) {
-    return Result<T>(Error(code, message));
+Result<T> Err(ErrorCode code, const std::string& message, Severity severity = Severity::MEDIUM) {
+    return Result<T>(Error(code, message, severity));
 };
 
 class VoidResult {
@@ -148,8 +151,8 @@ inline VoidResult Ok() {
     return VoidResult();
 };
 
-inline VoidResult Err(ErrorCode code, const std::string& message) {
-    return VoidResult(Error(code, message));
+inline VoidResult Err(ErrorCode code, const std::string& message, Severity severity = Severity::MEDIUM) {
+    return VoidResult(Error(code, message, severity));
 };
 
 /**
