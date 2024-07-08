@@ -1,6 +1,7 @@
 #ifndef SOFTWARE_BUS_H
 #define SOFTWARE_BUS_H
 
+#include <string>
 #include "5thderror_handler.h"
 #include "5thdipcmsg.h"
 #include "receiver.h"

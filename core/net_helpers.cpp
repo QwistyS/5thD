@@ -1,7 +1,6 @@
-#include "5thderrors.h"
-#include "5thdlogger.h"
 #include "net_helpers.h"
-#include <curl/curl.h>
+#include "5thderror_handler.h"
+#include "5thdlogger.h"
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -11,6 +10,7 @@
 #include <string>
 
 #include <arpa/inet.h>  //INET6_ADDRSTRLEN
+#include <curl/curl.h>
 #include <ifaddrs.h>
 #include <miniupnpc.h>
 #include <net/if.h>
@@ -127,7 +127,7 @@ int is_port_available(int port) {
         addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         addr.sin_port = htons(_port);
 
-        if (bind(sock, (struct sockaddr*) &addr, sizeof(addr)) == Errors::OK) {
+        if (bind(sock, (struct sockaddr*) &addr, sizeof(addr)) == (int)ErrorCode::OK) {
             ret = _port;
             break;
         } else {

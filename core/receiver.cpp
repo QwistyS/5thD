@@ -48,7 +48,12 @@ void ZMQReceiver::worker(std::atomic<bool>* until, std::function<void(void*)> ca
 }
 
 VoidResult ZMQReceiver::_listen() {
-    std::string endpoint = "tcp://" + _addr + ":" + std::to_string(_port);
+    std::string endpoint;
+    if (!_endpoint.empty()) {
+        endpoint = _endpoint;
+    } else {
+        endpoint = "tcp://" + _addr + ":" + std::to_string(_port);
+    }
 
     if (zmq_bind(_socket->get_socket(), endpoint.c_str()) != (int) ErrorCode::OK) {
         return Err(ErrorCode::FAIL_BIND_SOCKET, "Failed bind socket");
@@ -92,6 +97,13 @@ void ZMQReceiver::set_curve_server_options(const char* server_public_key, const 
     if (zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_SECRETKEY, server_secret_key, key_length_bytes)
         != (int) ErrorCode::OK) {
     }
+}
+
+void ZMQReceiver::set_endpoint(const char* endpoint) {
+    if (!endpoint) {
+        PANIC("No end point provided for receiver");
+    }
+    _endpoint = endpoint;
 }
 
 void ZMQReceiver::close() {

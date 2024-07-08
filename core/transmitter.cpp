@@ -13,7 +13,13 @@ void ZMQTransmitter::_init() {
 }
 
 VoidResult ZMQTransmitter::_connect(const std::string& ip, int port) {
-    std::string endpoint = "tcp://" + ip + ":" + std::to_string(port);
+    std::string endpoint;
+    if (port == 0) {
+        endpoint = ip;
+    } else {
+        endpoint = "tcp://" + ip + ":" + std::to_string(port);
+    }
+
     if (zmq_connect(_socket->get_socket(), endpoint.c_str()) != (int) ErrorCode::OK) {
         return Err(ErrorCode::SOCKET_CONNECT_FAIL, "Failed connect to " + endpoint);
     }
@@ -29,7 +35,7 @@ bool ZMQTransmitter::_handle_connect() {
 void ZMQTransmitter::set_curve_client_options(const char* server_public_key) {
 }
 
-void ZMQTransmitter::worker(int* until, void (*cb)(void* socket)) {
+void ZMQTransmitter::worker(std::atomic<bool>* until, std::function<void(void*)> callback) {
     // Poll items setup
     zmq_pollitem_t items[] = {{_socket->get_socket(), 0, ZMQ_POLLIN, 0}};
 
@@ -44,7 +50,7 @@ void ZMQTransmitter::worker(int* until, void (*cb)(void* socket)) {
 
         // Check if there's incoming data on the dealer socket
         if (items[0].revents & ZMQ_POLLIN) {
-            cb(_socket->get_socket());
+            callback(_socket->get_socket());
         }
     }
 }
@@ -63,13 +69,13 @@ void ZMQTransmitter::send(void* data, size_t data_length) const {
     zmq_msg_t message;
     zmq_msg_init_size(&message, data_length);
     memcpy(zmq_msg_data(&message), data, data_length);
-    if(zmq_send(_socket->get_socket(), "", 0, ZMQ_SNDMORE) == -1) {
-        WARN("Fail to send identity {}", zmq_strerror(zmq_errno()));
+    if (zmq_send(_socket->get_socket(), "", 0, ZMQ_SNDMORE) == -1) {
+        WARN("Fail to send identity. Error:{}", zmq_strerror(zmq_errno()));
     }
 
     auto ret = zmq_msg_send(&message, _socket->get_socket(), 0);
     if (ret == -1) {
-        WARN("Fail to send data error {}", zmq_strerror(zmq_errno()));
+        WARN("Fail to send data. Error:{}", zmq_strerror(zmq_errno()));
     }
     zmq_msg_close(&message);
 }

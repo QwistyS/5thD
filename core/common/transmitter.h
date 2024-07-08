@@ -15,6 +15,7 @@ public:
     virtual void connect(const std::string& ip, int port) = 0;
     virtual void close() = 0;
     virtual void send(void* data, size_t data_length) const = 0;
+    virtual void worker(std::atomic<bool>* until, std::function<void(void*)> callback) = 0;
 };
 
 /**
@@ -58,12 +59,13 @@ public:
      */
     void send(void* data, size_t data_length) const override;
 
+    void worker(std::atomic<bool>* until, std::function<void(void*)> callback) override;
+
     /**
      * @brief
      */
     void set_curve_client_options(const char* server_public_key);
 
-    void worker(int* until, void(*cb)(void *socket));
 
 protected:
     ErrorHandler _error;

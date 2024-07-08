@@ -2,6 +2,7 @@
 #define IPC_CLIENT_H
 
 #include <thread>
+#include <string>
 #include "transmitter.h"
 #include "5thdipcmsg.h"
 

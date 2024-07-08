@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(5thDPeer)
+project(5thDTests)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,27 +10,23 @@ include_directories(
     core/inc
 )
 
-file(GLOB PEER_FILES 
+file(GLOB TESTS 
     "core/src/*.cpp"
     "../core/receiver.cpp"
-    "../core/transmitter.cpp"
     "../core/izmq.cpp"
     "../core/5thdlogger.cpp"
     "../core/5thdipcmsg.c"
-    "../core/5thdipc_client.cpp"
-    "../core/5thdipcmsg.h"
 )
 
-set(SOURCES peer_module.cpp)
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${PEER_FILES})
+set(SOURCES test_all.cpp)
+
+add_executable(${PROJECT_NAME} ${SOURCES} ${TESTS})
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
     libzmq
-    OpenSSL::SSL
-    miniupnpc::miniupnpc
-    CURL::libcurl
+    spdlog::spdlog 
     ${LIBSODIUM_LIBRARIES}
-    spdlog::spdlog
+    unity
 )

@@ -1,22 +1,21 @@
 #ifndef IPC_MESSAGE_H
 #define IPC_MESSAGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include "qwistys_macro.h"
 
-#define IPC_ROUTER_ADDR "127.0.0.1"
-#define IPC_ROUTER_PORT 4545
+extern const char* IPC_ENDPOINT;
 
 #define CATEGORY_LENGTH_BYTES 30
 #define DATA_LENGTH_BYTES 256
 
 enum Clients { MANAGER = 0, PEER, UI, CLIENTS_TOTAL };
 
-constexpr const char* CLIENTS_IDS[] = {
-    "manager",
-    "peerxxx",
-    "uixxxxx",
-};
+extern const char* CLIENTS_IDS[];
 
 #if defined(__GNUC__) || defined(__clang__)
 typedef struct __attribute__((packed)) {
@@ -38,6 +37,10 @@ typedef struct {
 #    pragma pack(pop)
 #else
 #    error "Unsupported compiler/platform"
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif  // IPC_MESSAGE_H

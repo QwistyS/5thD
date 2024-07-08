@@ -11,6 +11,9 @@
 
 #include "5thdlogger.h"
 
+
+#define PANIC(msg) throw std::runtime_error(msg)
+
 /**
  * @brief Global error code for 5thd application may be splitted by context in future
  */
@@ -34,6 +37,21 @@ enum class ErrorCode {
     FAIL_UPNP_FORWARD,
     NO_OBJECT,
     OBJ_RECEIVER_INIT_FAIL,
+    FAIT_INIT_DB,
+    FAIL_CREATE_DB_SCHEME,
+    FAIL_OPEN_DB_FILE,
+    FAIL_DECRYPT_DB,
+    DB_PREPARE_STATEMENT_FAILED,
+    DB_STATEMENT_EXECUTION_FAILED,
+    DB_BIND_FAILED,
+    KEY_NOT_FOUND,
+    FAIL_ADD_KEY,
+    FAIL_UPDATE_KEY,
+    FAIL_GET_KEY,
+    FAIL_REMOVE_KEY,
+    NO_VALID_DB,
+    FAIL_DB_EXEC,
+    DB_ERROR,
     MONKEY,
     TOTAL
 };
@@ -48,7 +66,7 @@ enum class Severity { LOW, MEDIUM, HIGH, CRITICAL };
  */
 class Error {
 public:
-    Error(ErrorCode code, std::string message, Severity severity = Severity::MEDIUM)
+    Error(ErrorCode code, std::string message, Severity severity = Severity::HIGH)
         : code_(code), message_(std::move(message)), severity_(severity) {}
     /**
      * @brief method
@@ -84,7 +102,7 @@ public:
     bool is_err() const { return error_.has_value(); }
     const T& value() const {
         if (error_) throw std::runtime_error("Result contains an error");
-        return value_;
+        return *value_;
     }
     const Error& error() const {
         if (!error_) throw std::runtime_error("Result does not contain an error");

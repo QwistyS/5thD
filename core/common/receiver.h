@@ -1,7 +1,6 @@
 #ifndef RECEIVER_H
 #define RECEIVER_H
 
-#include "5thderror_handler.h"
 #include "izmq.h"
 
 class IReceiver {
@@ -11,6 +10,7 @@ public:
     virtual void close() = 0;
     virtual int get_port() const = 0;
     virtual void worker(std::atomic<bool>* until, std::function<void(void*)> callback) = 0;
+    virtual void set_endpoint(const char* endpoint) = 0;
 };
 
 class ZMQReceiver : public IReceiver {
@@ -26,6 +26,7 @@ public:
     int get_port() const override { return _port; }
     void set_curve_server_options(const char* server_public_key, const char* server_secret_key,
                                   size_t key_length_bytes);
+    void set_endpoint(const char* endpoint) override;
 
 protected:
     ErrorHandler _error;
@@ -38,6 +39,7 @@ private:
     ISocket* _socket;
     std::string _addr;
     void _init();
+    std::string _endpoint;
     // =============== Handle errors and recovery stuff
     VoidResult _listen();
     VoidResult _close();

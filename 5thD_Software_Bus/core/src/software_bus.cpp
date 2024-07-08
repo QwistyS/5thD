@@ -143,6 +143,7 @@ void ZMQBus::_handle_msg(void* sock) {
 }
 
 ZMQBus::~ZMQBus() {
+    _router->close();
 }
 
 void ZMQBus::run() {
@@ -152,4 +153,5 @@ void ZMQBus::run() {
 }
 
 void ZMQBus::_init() {
+    _router->set_endpoint(IPC_ENDPOINT);
 }
