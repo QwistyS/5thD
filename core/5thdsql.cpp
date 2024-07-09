@@ -331,6 +331,7 @@ VoidResult DatabaseAccess::_new_db() {
     if (verify_result.is_err()) {
         ERROR("Failed to verify tables: {}", verify_result.error().message());
     }
+    return Ok();
 }
 
 void DatabaseAccess::_setup_drp() {
