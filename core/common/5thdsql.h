@@ -12,7 +12,11 @@
 #include "5thderror_handler.h"
 
 // in future will move to env variable
-inline constexpr char MEANWHILE_DB_PATH[] = "/Users/danielmor/src/5thD/bin/5htincdb.db";
+
+#ifndef DB_PATH
+#define DB_PATH "/home/qwistys/src/5thD/bin/fithd.db"
+#endif
+
 inline constexpr char MEANWHILE_DB_KEY[] = "It was meant to be but not meant to last";
 
 typedef struct SecureQueryResult {
@@ -40,7 +44,7 @@ typedef struct SecureQueryResult {
 
 class DatabaseAccess {
 public:
-    DatabaseAccess(const std::string& path = MEANWHILE_DB_PATH, const std::string& encryption_key = MEANWHILE_DB_KEY)
+    DatabaseAccess(const std::string& path = DB_PATH, const std::string& encryption_key = MEANWHILE_DB_KEY)
         : _db_path(path), _key(nullptr), _key_num_byte(0), _error(_drp), _db(nullptr) {
         _init(path, encryption_key);
     }
@@ -53,6 +57,15 @@ public:
      */
     VoidResult open();
 
+    /**
+     * @brief
+     */
+    VoidResult begin_transaction();
+
+    /**
+     * @brief
+     */
+    VoidResult end_transaction();
     /**
      * @brief
      */

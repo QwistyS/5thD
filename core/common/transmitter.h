@@ -16,6 +16,7 @@ public:
     virtual void close() = 0;
     virtual void send(void* data, size_t data_length) const = 0;
     virtual void worker(std::atomic<bool>* until, std::function<void(void*)> callback) = 0;
+    virtual int set_sockopt(int option_name, const void* option_value, size_t option_len) = 0;
 };
 
 /**
@@ -59,7 +60,15 @@ public:
      */
     void send(void* data, size_t data_length) const override;
 
+    /**
+     * @brief
+     */
     void worker(std::atomic<bool>* until, std::function<void(void*)> callback) override;
+
+    /**
+     * @brief
+     */
+    int set_sockopt(int option_name, const void* option_value, size_t option_len) override;
 
     /**
      * @brief

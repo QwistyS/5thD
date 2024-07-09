@@ -11,6 +11,8 @@ public:
     virtual int get_port() const = 0;
     virtual void worker(std::atomic<bool>* until, std::function<void(void*)> callback) = 0;
     virtual void set_endpoint(const char* endpoint) = 0;
+    virtual int set_sockopt(int option_name, const void* option_value, size_t option_len) = 0;
+    virtual int get_sockopt(int option_name, void *option_value, size_t *option_len) = 0;
 };
 
 class ZMQReceiver : public IReceiver {
@@ -27,6 +29,9 @@ public:
     void set_curve_server_options(const char* server_public_key, const char* server_secret_key,
                                   size_t key_length_bytes);
     void set_endpoint(const char* endpoint) override;
+    int set_sockopt(int option_name, const void* option_value, size_t option_len) override;
+    int get_sockopt(int option_name, void *option_value, size_t *option_len) override;
+
 
 protected:
     ErrorHandler _error;

@@ -1,6 +1,6 @@
+#include "transmitter.h"
 #include <zmq.h>
 #include "qwistys_macro.h"
-#include "transmitter.h"
 
 ZMQTransmitter::~ZMQTransmitter() {
     close();
@@ -23,6 +23,28 @@ VoidResult ZMQTransmitter::_connect(const std::string& ip, int port) {
     if (zmq_connect(_socket->get_socket(), endpoint.c_str()) != (int) ErrorCode::OK) {
         return Err(ErrorCode::SOCKET_CONNECT_FAIL, "Failed connect to " + endpoint);
     }
+
+    // Poll the socket to check if it is connected
+    zmq_pollitem_t poll_items[] = {{_socket->get_socket(), 0, ZMQ_POLLOUT, 0}};
+    int timeout_ms = 5000;  // 5 seconds, or set your desired timeout value here
+    int poll_rc = zmq_poll(poll_items, 1, timeout_ms);
+
+    if (poll_rc == -1) {
+        ERROR("zmq_poll failed: %s", zmq_strerror(errno));
+        return Err(ErrorCode::FAIL_POLL_SOCKET, "Init Poll on connetc to " + endpoint);
+
+    } else if (poll_rc == 0) {
+        ERROR("Connection timeout after %d milliseconds", timeout_ms);
+        return Err(ErrorCode::SOCKET_TIMEOUT, "Timeout waiting for srv " + endpoint);
+    } else {
+        if (poll_items[0].revents & ZMQ_POLLOUT) {
+            DEBUG("Connected to {}", endpoint);
+        } else {
+            ERROR("Unexpected poll event: %d", poll_items[0].revents);
+            return Err(ErrorCode::MONKEY, "When tryed to poll on " + endpoint, Severity::HIGH);
+        }
+    }
+
     DEBUG("Connected to {}", endpoint);
     return Ok();
 }
@@ -55,10 +77,15 @@ void ZMQTransmitter::worker(std::atomic<bool>* until, std::function<void(void*)>
     }
 }
 
+int ZMQTransmitter::set_sockopt(int option_name, const void* option_value, size_t option_len) {
+    return zmq_setsockopt(_socket->get_socket(), option_name, option_value, option_len);
+}
+
 void ZMQTransmitter::connect(const std::string& ip, int port) {
     auto ret = _connect(ip, port);
     if (ret.is_err()) {
         WARN("Trying to resolve connection");
+        _error.handle_error(ret.error());
     }
 }
 

@@ -9,6 +9,14 @@
 #include "5thdsql.h"
 #include "5thderror_handler.h"
 
+// Debug stuff
+VoidResult check_key_types(DatabaseAccess& db);
+
+VoidResult print_schema(DatabaseAccess& db);
+
+void print_all_keys(DatabaseAccess& db);
+
+
 // Helper function to convert time_point to string
 std::string time_point_to_string(const std::chrono::system_clock::time_point& tp);
 

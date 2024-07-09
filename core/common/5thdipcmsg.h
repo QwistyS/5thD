@@ -13,7 +13,7 @@ extern const char* IPC_ENDPOINT;
 #define CATEGORY_LENGTH_BYTES 30
 #define DATA_LENGTH_BYTES 256
 
-enum Clients { MANAGER = 0, PEER, UI, CLIENTS_TOTAL, ROUTER };
+enum Clients { MANAGER = 0, PEER, UI, ROUTER, CLIENTS_TOTAL };
 
 extern const char* CLIENTS_IDS[];
 

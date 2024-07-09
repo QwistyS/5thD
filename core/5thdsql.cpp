@@ -1,9 +1,15 @@
+#include "5thdsql.h"
 #include <fstream>
 #include <set>
 #include <sstream>
 #include <stdexcept>
-#include "5thdsql.h"
 #include "qwistys_macro.h"
+
+#ifdef USE_EXPERIMENTAL_FILESYSTEM
+#    include <experimental/filesystem>
+#else
+#    include <filesystem>
+#endif
 
 DatabaseAccess::~DatabaseAccess() {
     auto ret = close();
@@ -51,6 +57,14 @@ VoidResult DatabaseAccess::open() {
     _key = nullptr;
     _key_num_byte = 0;
     return Ok();
+}
+
+VoidResult DatabaseAccess::begin_transaction() {
+    return exec("BEGIN TRANSACTION;");
+}
+
+VoidResult DatabaseAccess::end_transaction() {
+    return exec("COMMIT;");
 }
 
 VoidResult DatabaseAccess::close() {
@@ -284,6 +298,9 @@ std::string DatabaseAccess::_read_scheme_script(const std::string& sql_script_pa
 }
 
 void DatabaseAccess::_init(const std::string& path, const std::string encryption_key) {
+    _db_path = path;
+    DEBUG("Initializing database with path: {}", _db_path);
+
     _setup_drp();
 
     _key_num_byte = encryption_key.length();
@@ -296,11 +313,13 @@ void DatabaseAccess::_init(const std::string& path, const std::string encryption
     memcpy(_key, encryption_key.c_str(), _key_num_byte);
 
     bool is_new_db = !std::filesystem::exists(_db_path);
+    DEBUG("Database file exists: {}", is_new_db ? "No" : "Yes");
 
     if (is_new_db) {
-        DEBUG("New data base detected ... Initializing");
+        DEBUG("New database detected ... Initializing");
         auto ret = _new_db();
         if (ret.is_err()) {
+            ERROR("Failed to create new database: {}", ret.error().message());
             if (!_error.handle_error(ret.error()))
                 std::abort();
         }
@@ -317,7 +336,7 @@ VoidResult DatabaseAccess::_new_db() {
 
     // The path is meanwhile
     QWISTYS_TODO_MSG("create a proper links to path for sql scripts");
-    std::string sql_script_path("/Users/danielmor/src/5thD/db_scripts/table_keys.sql");
+    std::string sql_script_path("/home/qwistys/src/5thD/db_scripts/table_keys.sql");
     if (!std::filesystem::exists(sql_script_path)) {
         ERROR("File sql script does not exist");
         std::abort();

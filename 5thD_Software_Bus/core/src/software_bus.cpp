@@ -1,7 +1,7 @@
 #include <errno.h>
+#include <functional>
 #include <iostream>
 #include <unordered_map>
-#include <functional>
 
 #include "5thdlogger.h"
 #include "software_bus.h"
@@ -11,7 +11,7 @@ void print_ipc_msg(ipc_msg_t* msg) {
     printf("--- Frame ---\n");
     printf("src: %d\n", msg->src_id);
     printf("dist: %d\n", msg->dist_id);
-    printf("timestamp: %lld\n", msg->timestamp);
+    printf("timestamp: %ld\n", msg->timestamp);
     printf("category: %s\n", msg->category);
     printf("data: ");
     for (int i = 0; i < DATA_LENGTH_BYTES; i++) printf("%x", msg->data[i]);
@@ -144,6 +144,26 @@ void ZMQBus::_handle_msg(void* sock) {
 
 ZMQBus::~ZMQBus() {
     _router->close();
+}
+
+void ZMQBus::set_security(const char* pub_key, const char* prv_key) {
+    if (!pub_key) {
+        WARN("NO Ecriptions set duo the fact the kye is null");
+        std::abort();
+    }
+    int as_server = 1;
+    _router->set_sockopt(ZMQ_CURVE_SERVER, &as_server, sizeof(as_server));
+    _router->set_sockopt(ZMQ_CURVE_PUBLICKEY, pub_key, 40);
+    _router->set_sockopt(ZMQ_CURVE_SECRETKEY, prv_key, 40);
+
+    int has_curve;
+    size_t has_curve_size = sizeof(has_curve);
+    _router->get_sockopt(ZMQ_CURVE_SERVER, &has_curve, &has_curve_size);
+    if (has_curve) {
+        WARN("CURVE security is available");
+    } else {
+        WARN("CURVE security is not available");
+    }
 }
 
 void ZMQBus::run() {

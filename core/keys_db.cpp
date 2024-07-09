@@ -1,6 +1,82 @@
+#include "keys_db.h"
 #include <iomanip>
 #include <sstream>
-#include "keys_db.h"
+
+
+VoidResult check_key_types(DatabaseAccess& db) {
+    std::string sql = "SELECT type_name FROM key_types;";
+    sdbret_t result;
+    auto stmt = db.prepare(sql);
+    if (stmt.is_err())
+        return Err(ErrorCode::DB_ERROR, "Failed to prepare key_types query");
+
+    auto query_result = db.query(stmt.value(), result);
+    if (query_result.is_err()) {
+        ERROR("Failed to query key_types: {}", query_result.error().message());
+        return Err(ErrorCode::DB_ERROR, "Failed to query key_types");
+    }
+    for (const auto& row : result.rows) {
+        if (!row.columns.empty()) {
+            DEBUG("Key type: {}", std::string(row.columns[0].second.begin(), row.columns[0].second.end()));
+        }
+    }
+    return Ok();
+}
+
+VoidResult print_schema(DatabaseAccess& db) {
+    std::string sql = "SELECT name, sql FROM sqlite_master WHERE type='table';";
+    sdbret_t result;
+    auto stmt = db.prepare(sql);
+    if (stmt.is_err())
+        return Err(ErrorCode::DB_ERROR, "Failed to prepare schema query");
+
+    auto query_result = db.query(stmt.value(), result);
+    if (query_result.is_err()) {
+        ERROR("Failed to query schema: {}", query_result.error().message());
+        return Err(ErrorCode::DB_ERROR, "Failed to query schema");
+    }
+    for (const auto& row : result.rows) {
+        if (row.columns.size() >= 2) {
+            DEBUG("Table {}: {}", std::string(row.columns[0].second.begin(), row.columns[0].second.end()),
+                  std::string(row.columns[1].second.begin(), row.columns[1].second.end()));
+        }
+    }
+    return Ok();
+}
+
+void print_all_keys(DatabaseAccess& db) {
+    DEBUG("Printing all keys in the database:");
+    
+    const char* query = "SELECT module_name, key_type_id, key_name, created_at, expires_at, is_active FROM module_keys";
+    
+    auto stmt_result = db.prepare(query);
+    if (stmt_result.is_err()) {
+        ERROR("Failed to prepare statement for printing keys: {}", stmt_result.error().message());
+        return;
+    }
+    
+    sqlite3_stmt* stmt = stmt_result.value();
+    
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* module_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        int key_type_id = sqlite3_column_int(stmt, 1);
+        const char* key_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        const char* created_at = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        const char* expires_at = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        int is_active = sqlite3_column_int(stmt, 5);
+
+        DEBUG("Key: module_name='{}', key_type_id={}, key_name='{}', created_at='{}', expires_at='{}', is_active={}",
+              module_name ? module_name : "NULL",
+              key_type_id,
+              key_name ? key_name : "NULL",
+              created_at ? created_at : "NULL",
+              expires_at ? expires_at : "NULL",
+              is_active);
+    }
+    
+    sqlite3_finalize(stmt);
+}
+
 
 std::string time_point_to_string(const std::chrono::system_clock::time_point& tp) {
     auto t = std::chrono::system_clock::to_time_t(tp);
@@ -31,6 +107,7 @@ VoidResult store_key(DatabaseAccess& db, const std::string& module_name, KeyType
                      const std::chrono::system_clock::time_point& expires_at) {
     std::string sql = "INSERT INTO module_keys (module_name, key_type_id, key_name, key_value, expires_at) "
                       "VALUES (?, (SELECT id FROM key_types WHERE type_name = ?), ?, ?, ?)";
+    DEBUG("Attempting to store key: module={}, type={}, name={}", module_name, key_type_to_string(key_type), key_name);
 
     auto stmt = db.prepare(sql);
     if (stmt.is_err())
@@ -64,7 +141,13 @@ VoidResult store_key(DatabaseAccess& db, const std::string& module_name, KeyType
     if (bind_result.is_err())
         return Err(ErrorCode::FAIL_ADD_KEY, "Failed to bind expires_at");
 
-    return db.execute(stmt_ptr);
+    auto result = db.execute(stmt_ptr);
+    if (result.is_err()) {
+        ERROR("Failed to store key: {}", result.error().message());
+    } else {
+        DEBUG("Key stored successfully");
+    }
+    return result;
 }
 
 VoidResult update_key(DatabaseAccess& db, const std::string& module_name, KeyType key_type, const std::string& key_name,

@@ -18,95 +18,100 @@ void signal_handler(int signum) {
     }
 }
 
-VoidResult print_schema(DatabaseAccess& db) {
-    std::string sql = "SELECT sql FROM sqlite_master WHERE type='table';";
-    sdbret_t result;
-    auto key_stmt = db.prepare(sql);
-    if (key_stmt.is_err())
-        return Err(ErrorCode::FAIL_GET_KEY, "Failed to prepare key query");
-
-    auto key_stmt_ptr = key_stmt.value();
-    auto query_result = db.query(key_stmt_ptr, result);
-    if (query_result.is_err()) {
-        ERROR("Failed to query schema: {}", query_result.error().message());
-        return Err(ErrorCode::DB_ERROR, "Failed to query schema");
-    }
-    for (const auto& row : result.rows) {
-        if (!row.columns.empty()) {
-            DEBUG("Table schema: {}", std::string(row.columns[0].second.begin(), row.columns[0].second.end()));
-        }
-    }
-    return Ok();
-}
-
 int main() {
     Log::init();
-    // Set up signal handler
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
+    std::string router_pub_key;
+    std::string router_prv_key;
+
     if (sodium_init() < 0) {
         ERROR("Failed to initialize libsodium");
-        std::abort();
+        return 1;
     }
+
     DatabaseAccess db;
-    print_schema(db);
 
-    auto key_result = get_key(db, CLIENTS_IDS[Clients::ROUTER], KeyType::CURVE25519, "public_key");
-    if (key_result.is_err()) {
-        WARN("Error from db {}", key_result.error().message());
-        if (key_result.error().code() == ErrorCode::KEY_NOT_FOUND) {
-            char public_key[41];
-            char private_key[41];
-            if (generate_keys(public_key, private_key) != static_cast<int>(ErrorCode::OK)) {
+    // Scope to clear RAM
+    {
+        // Try to get existing keys
+        DEBUG("Attempting to retrieve existing keys");
+        auto public_key_result =
+            get_key(db, CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], KeyType::CURVE25519, "public_key");
+        auto private_key_result =
+            get_key(db, CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], KeyType::CURVE25519, "private_key");
+
+        if (public_key_result.is_err() || private_key_result.is_err()) {
+            DEBUG("Keys not found, generating new ones");
+            char public_key_str[41];
+            char private_key_str[41];
+            if (generate_keys(public_key_str, private_key_str) != static_cast<int>(ErrorCode::OK)) {
                 ERROR("Failed to generate keys for router");
-                std::abort();
+                return 1;
             }
-            DEBUG("Key generated private {} public {}", public_key, private_key);
+            DEBUG("Keys generated: public {}, private {}", public_key_str, private_key_str);
 
-            // Convert char arrays to vectors of unsigned char
-            std::vector<unsigned char> public_key_vec(public_key, public_key + strlen(public_key));
-            std::vector<unsigned char> private_key_vec(private_key, private_key + strlen(private_key));
+            std::vector<unsigned char> public_key(public_key_str, public_key_str + strlen(public_key_str));
+            std::vector<unsigned char> private_key(private_key_str, private_key_str + strlen(private_key_str));
 
-            // Store public key
-            auto ret_public =
-                store_key(db, CLIENTS_IDS[Clients::ROUTER], KeyType::CURVE25519, "public_key", public_key_vec);
-            if (ret_public.is_err()) {
-                ERROR("Failed to store public key: {}", ret_public.error().message());
-                std::abort();
-            }
-            DEBUG("Keys public stored");
-
-            // Store private key
-            auto ret_private =
-                store_key(db, CLIENTS_IDS[Clients::ROUTER], KeyType::CURVE25519, "private_key", private_key_vec);
-            if (ret_private.is_err()) {
-                ERROR("Failed to store private key: {}", ret_private.error().message());
-                std::abort();
+            auto begin_result = db.begin_transaction();
+            if (begin_result.is_err()) {
+                ERROR("Failed to begin transaction: {}", begin_result.error().message());
+                return 1;
             }
 
-            DEBUG("Generated and stored new keys for router");
+            DEBUG("Storing public key");
+            auto store_public = store_key(db, CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], KeyType::CURVE25519,
+                                          "public_key", public_key);
+            if (store_public.is_err()) {
+                ERROR("Failed to store public key: {}", store_public.error().message());
+                db.exec("ROLLBACK");  // Rollback the transaction if storing public key fails
+                return 1;
+            }
+            DEBUG("Public key stored successfully");
+
+            DEBUG("Storing private key");
+            auto store_private = store_key(db, CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], KeyType::CURVE25519,
+                                           "private_key", private_key);
+            if (store_private.is_err()) {
+                ERROR("Failed to store private key: {}", store_private.error().message());
+                db.exec("ROLLBACK");  // Rollback the transaction if storing private key fails
+                return 1;
+            }
+            DEBUG("Private key stored successfully");
+
+            auto end_result = db.end_transaction();
+            if (end_result.is_err()) {
+                ERROR("Failed to commit transaction: {}", end_result.error().message());
+                return 1;
+            }
+
+            router_pub_key.assign(public_key.begin(), public_key.end());
+            router_prv_key.assign(private_key.begin(), private_key.end());
+
         } else {
-            // Handle other errors
-            ERROR("Error while checking for existing key: {}", key_result.error().message());
-            std::abort();
+            DEBUG("Existing keys found");
+            router_pub_key.assign(public_key_result.value().begin(), public_key_result.value().end());
+            router_prv_key.assign(private_key_result.value().begin(), private_key_result.value().end());
+            QWISTYS_TODO_MSG("Clear the keys from RAM");
         }
-    } else {
-        DEBUG("Existing keys found for router");
     }
 
     std::unique_ptr<ZMQWContext> ctx = std::make_unique<ZMQWContext>();
     std::unique_ptr<ZMQWSocket> socket = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_ROUTER);
 
-    ZMQReceiver recv("", 0, ctx.get(), socket.get());
+    ZMQReceiver recv(CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], 0, ctx.get(), socket.get());
 
     recv.set_endpoint(IPC_ENDPOINT);
     std::unique_ptr<ZMQBus> bus = std::make_unique<ZMQBus>(&recv);
 
+    bus->set_security(router_pub_key.c_str(), router_prv_key.c_str());
+    
+    router_pub_key.clear();
+
     bus->run();
 
-    socket.reset();
-    ctx.reset();
     DEBUG("Clearing router...");
     return 0;
 }

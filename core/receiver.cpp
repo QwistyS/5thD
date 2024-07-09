@@ -106,6 +106,14 @@ void ZMQReceiver::set_endpoint(const char* endpoint) {
     _endpoint = endpoint;
 }
 
+int ZMQReceiver::set_sockopt(int option_name, const void* option_value, size_t option_len) {
+    return zmq_setsockopt(_socket->get_socket(), option_name, option_value, option_len);
+}
+
+int ZMQReceiver::get_sockopt(int option_name, void* option_value, size_t* option_len) {
+    return zmq_getsockopt(_socket->get_socket(), option_name, option_value, option_len);
+}
+
 void ZMQReceiver::close() {
     auto ret = _close();
     if (ret.is_err()) {

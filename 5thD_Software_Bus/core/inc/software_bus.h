@@ -10,6 +10,7 @@ class ZMQBus {
 public:
     ZMQBus(IReceiver* receiver) : _router(receiver), _error(_drp), _poll(true) { _init(); };
     ~ZMQBus();
+    void set_security(const char* pub_key, const char* prv_key);
     void run();
 
 protected:

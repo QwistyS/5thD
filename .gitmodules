@@ -25,3 +25,6 @@
 [submodule "third_parties/sqlcipher"]
 	path = third_parties/sqlcipher
 	url = https://github.com/sqlcipher/sqlcipher.git
+[submodule "third_parties/libsodium"]
+	path = third_parties/libsodium
+	url = https://github.com/jedisct1/libsodium.git
