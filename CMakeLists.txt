@@ -22,6 +22,7 @@ set(5thDlibs /home/qwistys/src/5thD/bin)
 
 
 add_subdirectory(${THIRDP}/spdlog)
+add_subdirectory(${THIRDP}/Unity)
 
 file(GLOB CORE_SRC_FILES 
 )
@@ -49,3 +50,4 @@ endif()
 
 add_subdirectory(5thD_Software_Bus)
 add_subdirectory(5thD_Peer)
+add_subdirectory(5thD_Test)

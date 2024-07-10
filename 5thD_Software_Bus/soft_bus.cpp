@@ -2,26 +2,13 @@
 #include <chrono>
 #include <memory>
 #include <thread>
-#include "signal.h"
 
 #include "5thdsql.h"
 #include "keys_db.h"
 #include "software_bus.h"
 
-// Global flag to indicate if termination signal received
-volatile sig_atomic_t termination_requested = 1;
-
-void signal_handler(int signum) {
-    if (signum == SIGINT || signum == SIGTERM) {
-        DEBUG("Termination signal received. Cleaning up...");
-        termination_requested = 0;
-    }
-}
-
 int main() {
     Log::init();
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
 
     std::string router_pub_key;
     std::string router_prv_key;
@@ -104,11 +91,16 @@ int main() {
     ZMQReceiver recv(CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], 0, ctx.get(), socket.get());
 
     recv.set_endpoint(IPC_ENDPOINT);
+    QWISTYS_TODO_MSG("Do i need to set curve before connecting?");
+
     std::unique_ptr<ZMQBus> bus = std::make_unique<ZMQBus>(&recv);
+    signal(SIGINT, bus->singal_handler);
+    signal(SIGTERM, bus->singal_handler);
 
     bus->set_security(router_pub_key.c_str(), router_prv_key.c_str());
-    
+
     router_pub_key.clear();
+    router_prv_key.clear();
 
     bus->run();
 

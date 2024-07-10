@@ -43,11 +43,11 @@ set(SOURCES soft_bus.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${SOFT_BUS_FILES})
 
-find_package(OpenSSL REQUIRED)
+# find_package(OpenSSL REQUIRED)
 
 target_link_libraries(${PROJECT_NAME}
     spdlog::spdlog
-    OpenSSL::SSL
+    # OpenSSL::SSL
     sodium
     zmq
     sqlcipher

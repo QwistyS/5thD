@@ -147,7 +147,7 @@ int main() {
     IpcClient ipc_client(&ipc_transmitter);
 
     // Register self id.
-    ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::PEER);
+    ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::MANAGER);
     while (termination_requested) {
         DEBUG("Sending data");
         ipc_client.send(&ipc_peer_msg);
