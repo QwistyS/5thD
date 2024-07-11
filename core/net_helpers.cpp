@@ -287,7 +287,7 @@ std::string get_iface_name(const std::string& local_addr) {
 #endif
 }
 
-bool set_port_forward(int external_port, const std::string& internal_ip, int internal_port, std::string& iface) {
+bool set_port_forward(const std::string& external_ip, int external_port, const std::string& internal_ip, int internal_port, const std::string& description) {
     struct UPNPDev* devlist;
     struct UPNPUrls urls;
     struct IGDdatas data;
@@ -295,35 +295,39 @@ bool set_port_forward(int external_port, const std::string& internal_ip, int int
     int error = -1;
 
     // Discover UPnP devices
-    devlist = upnpDiscover(2000, NULL, NULL, 0, 0, 2, NULL);
-    if (devlist) {
-        // Get the URLs and IGD data for UPnP device
-        if (UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr)) == 1) {
-            // Successfully found a UPnP enabled device (Internet Gateway Device)
-
-            // Try to add a port mapping
-            error =
-                UPNP_AddPortMapping(urls.controlURL, data.first.servicetype, std::to_string(external_port).c_str(),
-                                    std::to_string(internal_port).c_str(), internal_ip.c_str(), NULL, "TCP", NULL, "0");
-
-            if (error == UPNPCOMMAND_SUCCESS) {
-                DEBUG("Successfully opened port {} and forwarded to {}:{}", external_port, internal_ip, internal_port);
-            } else {
-                ERROR("Failed to open port. Error code: {}", error);
-            }
-
-            // Free URLs and data structures
-            FreeUPNPUrls(&urls);
-        } else {
-            ERROR("No valid UPnP Internet Gateway Device found.");
-        }
-
-        // Free discovered devices list
-        freeUPNPDevlist(devlist);
-    } else {
-        ERROR("No UPnP devices found.");
+    devlist = upnpDiscover(2000, NULL, NULL, 0, 0, 2, &error);
+    if (!devlist) {
+        ERROR("No UPnP devices found. Error code: {}", error);
         return false;
     }
+
+    // Get the URLs and IGD data for UPnP device
+    int igdFound = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr));
+    if (igdFound != 1) {
+        ERROR("No valid UPnP Internet Gateway Device found. IGD result: {}", igdFound);
+        freeUPNPDevlist(devlist);
+        return false;
+    }
+
+    // Try to add a port mapping
+    error = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
+                                std::to_string(external_port).c_str(),
+                                std::to_string(internal_port).c_str(),
+                                internal_ip.c_str(),
+                                description.c_str(),
+                                "TCP",
+                                NULL,
+                                "0");
+
+    if (error == UPNPCOMMAND_SUCCESS) {
+        DEBUG("Successfully opened port {} and forwarded to {}:{}", external_port, internal_ip, internal_port);
+    } else {
+        ERROR("Failed to open port. Error code: {}", error);
+    }
+
+    // Free URLs and data structures
+    FreeUPNPUrls(&urls);
+    freeUPNPDevlist(devlist);
 
     return (error == UPNPCOMMAND_SUCCESS);
 }

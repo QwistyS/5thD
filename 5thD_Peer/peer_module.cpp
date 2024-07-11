@@ -120,39 +120,42 @@ int main() {
     }
 
     // Start ipc
-    ZMQWContext ipc_ctx;
-    ZMQWSocket ipc_sock(&ipc_ctx, ZMQ_DEALER);
-    ZMQTransmitter ipc_transmitter(&ipc_ctx, &ipc_sock, CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
-    DEBUG("Server public key length: {}", ipcpub_key.length());
-    DEBUG("Client public key length: {}", peer_pub_key.length());
-    DEBUG("Client private key length: {}", peer_prv_key.length());
+    std::unique_ptr<ZMQWContext> ctx = std::make_unique<ZMQWContext>();
+    std::unique_ptr<ZMQWSocket> ipcsock = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_DEALER);
+    std::unique_ptr<ZMQTransmitter> ipc_trnsm = std::make_unique<ZMQTransmitter>(ctx.get(), ipcsock.get(), CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
 
-    int rc = ipc_transmitter.set_sockopt(ZMQ_CURVE_SERVERKEY, ipcpub_key.c_str(), 40);
+    int rc = ipc_trnsm->set_sockopt(ZMQ_CURVE_SERVERKEY, ipcpub_key.c_str(), 40);
     if (rc != 0) {
         ERROR("Failed to set CURVE_SERVERKEY: {}", zmq_strerror(errno));
     }
-    rc = ipc_transmitter.set_sockopt(ZMQ_CURVE_PUBLICKEY, peer_pub_key.c_str(), 40);
+    rc = ipc_trnsm->set_sockopt(ZMQ_CURVE_PUBLICKEY, peer_pub_key.c_str(), 40);
     if (rc != 0) {
         ERROR("Failed to set CURVE_PUBLICKEY: {}", zmq_strerror(errno));
     }
-    rc = ipc_transmitter.set_sockopt(ZMQ_CURVE_SECRETKEY, peer_prv_key.c_str(), 40);
+    rc = ipc_trnsm->set_sockopt(ZMQ_CURVE_SECRETKEY, peer_prv_key.c_str(), 40);
     if (rc != 0) {
         ERROR("Failed to set CURVE_SECRETKEY: {}", zmq_strerror(errno));
     }
 
+    
     int timeout_ms = 5000;  // 1 seconds
-    ipc_transmitter.set_sockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
-    ipc_transmitter.set_sockopt(ZMQ_SNDTIMEO, &timeout_ms, sizeof(timeout_ms));
+    ipc_trnsm->set_sockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
+    ipc_trnsm->set_sockopt(ZMQ_SNDTIMEO, &timeout_ms, sizeof(timeout_ms));
 
-    IpcClient ipc_client(&ipc_transmitter);
 
+    std::unique_ptr<IpcClient> ipc_client = std::make_unique<IpcClient>(ipc_trnsm.get());
     // Register self id.
     ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::MANAGER);
     while (termination_requested) {
         DEBUG("Sending data");
-        ipc_client.send(&ipc_peer_msg);
+        ipc_client->send(&ipc_peer_msg);
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
+    // Cleanup
+    ipc_client.release();
+    ipc_trnsm.release();
+    ipcsock.release();
+    ctx.release();
     return 0;
 }

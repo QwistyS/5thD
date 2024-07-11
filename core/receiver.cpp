@@ -3,27 +3,23 @@
 #include "qwistys_macro.h"
 #include "receiver.h"
 
-void erro_cb(const Error& e) {
-    WARN("Trying to resolve {}", e.message());
-}
-
-ZMQReceiver::~ZMQReceiver() {
+ZMQWReceiver::~ZMQWReceiver() {
     close();
+    DEBUG("Closed receiver");
 }
 
-void ZMQReceiver::_setup_drp() {
+void ZMQWReceiver::_setup_drp() {
     _drp.register_recovery_action(ErrorCode::FAIL_BIND_SOCKET, [this]() {
         WARN("Trying to recover error Receiver bind");
-        return _handle_bind_issue();
+        return _handle_bind();
     });
 }
 
-void ZMQReceiver::_init() {
+void ZMQWReceiver::_init() {
     _setup_drp();
-    _error.register_callback(ErrorCode::FAIL_BIND_SOCKET, erro_cb);
 }
 
-void ZMQReceiver::worker(std::atomic<bool>* until, std::function<void(void*)> callback) {
+void ZMQWReceiver::worker(std::atomic<bool>* until, std::function<void(void*)> callback) {
     zmq_pollitem_t items[] = {{_socket->get_socket(), 0, ZMQ_POLLIN, 0}};
 
     DEBUG("Polling thread started");
@@ -47,7 +43,7 @@ void ZMQReceiver::worker(std::atomic<bool>* until, std::function<void(void*)> ca
     DEBUG("Polling ended");
 }
 
-VoidResult ZMQReceiver::_listen() {
+VoidResult ZMQWReceiver::_listen() {
     std::string endpoint;
     if (!_endpoint.empty()) {
         endpoint = _endpoint;
@@ -56,7 +52,7 @@ VoidResult ZMQReceiver::_listen() {
     }
 
     if (zmq_bind(_socket->get_socket(), endpoint.c_str()) != (int) ErrorCode::OK) {
-        return Err(ErrorCode::FAIL_BIND_SOCKET, "Failed bind socket");
+        return Err(ErrorCode::FAIL_BIND_SOCKET, "Failed bind socket", Severity::HIGH);
     }
 
     DEBUG("Listener opened on {}", endpoint.c_str());
@@ -64,57 +60,87 @@ VoidResult ZMQReceiver::_listen() {
     return Ok();
 }
 
-VoidResult ZMQReceiver::_close() {
-    if (zmq_close(_socket->get_socket()) != (int) ErrorCode::OK) {
-        return Err(ErrorCode::FAIL_CLOSE_ZQM_SOCKET, "Fail to close transmitter socket");
-    }
+VoidResult ZMQWReceiver::_close() {
     return Ok();
 }
 
-bool ZMQReceiver::_handle_bind_issue() {
+bool ZMQWReceiver::_handle_bind() {
+    WARN("Binding isssue");
+    WARN("Endpoint = {}", _endpoint.c_str());
+    WARN("Address = {}", _addr.c_str());
+    WARN("Port = {}", _port);
+
+    return false;
+}
+
+bool ZMQWReceiver::listen() {
     auto ret = _listen();
     if (ret.is_err()) {
-        return false;
+        DEBUG("Error {}", ret.error().message());
+        return _error.handle_error(ret.error());
     }
     return true;
 }
 
-void ZMQReceiver::listen() {
-    auto ret = _listen();
-    if (ret.is_err()) {
-        _error.handle_error(ret.error());
-    }
-}
-
-void ZMQReceiver::set_curve_server_options(const char* server_public_key, const char* server_secret_key,
+bool ZMQWReceiver::set_curve_server_options(const char* self_pub_key, const char* self_prv_key,
                                            size_t key_length_bytes) {
-    int enable_curve = 1;
-    zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_SERVER, &enable_curve, sizeof(enable_curve));
-    if (zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_PUBLICKEY, server_public_key, key_length_bytes)
-        != (int) ErrorCode::OK) {
+    bool ret = false;
+
+    if (!self_pub_key || !self_prv_key) {
+        WARN("NO Ecriptions set duo the fact the kye is null");
+        return ret;
     }
 
-    if (zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_SECRETKEY, server_secret_key, key_length_bytes)
-        != (int) ErrorCode::OK) {
+    int as_server = 1;
+    int rc = zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_SERVER, &as_server, sizeof(as_server));
+    if (rc != 0) {
+        ERROR("Failed to set CURVE_SERVER option: {}", zmq_strerror(errno));
+        return ret;
     }
+
+    rc = zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_PUBLICKEY, self_pub_key, key_length_bytes);
+    if (rc != 0) {
+        ERROR("Failed to set CURVE_PUBLICKEY: {}", zmq_strerror(errno));
+        return ret;
+    }
+
+    rc = zmq_setsockopt(_socket->get_socket(), ZMQ_CURVE_SECRETKEY, self_prv_key, key_length_bytes);
+    if (rc != 0) {
+        ERROR("Failed to set CURVE_SECRETKEY: {}", zmq_strerror(errno));
+        return ret;
+    }
+
+    int has_curve;
+    size_t has_curve_size = sizeof(has_curve);
+    zmq_getsockopt(_socket->get_socket(), ZMQ_CURVE_SERVER, &has_curve, &has_curve_size);
+
+    if (has_curve) {
+        DEBUG("CURVE security is available");
+        ret = true;
+    } else {
+        WARN("CURVE security is not available");
+    }
+
+    return ret;
 }
 
-void ZMQReceiver::set_endpoint(const char* endpoint) {
+bool ZMQWReceiver::set_endpoint(const char* endpoint) {
     if (!endpoint) {
-        PANIC("No end point provided for receiver");
+        return false;
     }
     _endpoint = endpoint;
+    return !_endpoint.empty();
 }
 
-int ZMQReceiver::set_sockopt(int option_name, const void* option_value, size_t option_len) {
+int ZMQWReceiver::set_sockopt(int option_name, const void* option_value, size_t option_len) {
     return zmq_setsockopt(_socket->get_socket(), option_name, option_value, option_len);
 }
 
-int ZMQReceiver::get_sockopt(int option_name, void* option_value, size_t* option_len) {
+int ZMQWReceiver::get_sockopt(int option_name, void* option_value, size_t* option_len) {
     return zmq_getsockopt(_socket->get_socket(), option_name, option_value, option_len);
 }
 
-void ZMQReceiver::close() {
+void ZMQWReceiver::close() {
     auto ret = _close();
     if (ret.is_err()) {
         _error.handle_error(ret.error());

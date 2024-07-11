@@ -46,6 +46,7 @@ void ZMQWContext::_close() {
         ERROR("Fail to close zmq context");
     }
     _context = nullptr;
+    DEBUG("Closed zmq ctx");
 }
 
 Result<void*> ZMQWContext::_create_context() {
@@ -60,6 +61,7 @@ Result<void*> ZMQWContext::_create_context() {
 
 ZMQWSocket::~ZMQWSocket() {
     _close();
+    DEBUG("Closed zmq socket");
 }
 
 void* ZMQWSocket::get_socket() {

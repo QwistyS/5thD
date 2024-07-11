@@ -2,15 +2,14 @@
 #define ERROR_HANDLER_H
 
 #include <functional>
+#include <optional>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <type_traits>
-#include <optional>
+#include <unordered_map>
 #include <variant>
 
 #include "5thdlogger.h"
-
 
 #define PANIC(msg) throw std::runtime_error(msg)
 
@@ -78,22 +77,11 @@ enum class Severity { LOW, MEDIUM, HIGH, CRITICAL };
  */
 class Error {
 public:
-    Error(ErrorCode code, std::string message, Severity severity = Severity::HIGH)
-        : code_(code), message_(std::move(message)), severity_(severity) {}
-    /**
-     * @brief method
-     * @return enum ErrorCode the code
-     */
+    Error(ErrorCode code, const std::string& message, Severity severity)
+        : code_(code), message_(message), severity_(severity) {}
+
     ErrorCode code() const { return code_; }
-    /**
-     * @brief method
-     * @return std::string Error message
-     */
     const std::string& message() const { return message_; }
-    /**
-     * @brief method
-     * @return enum Severity the code
-     */
     Severity severity() const { return severity_; }
 
 private:
@@ -103,66 +91,70 @@ private:
 };
 
 /**
- * @brief Automatic checking if error exist
+ * @brief Result is a abstraction for handling errors wrapper around of actual result from function
+ * @note Used as type, a bit cost performance but worth it.
  */
-template<typename T>
+template <typename T>
 class Result {
 public:
     Result(T value) : value_(std::move(value)) {}
-    Result(Error error) : error_(std::move(error)) {}
-    bool is_ok() const { return !error_.has_value(); }
-    bool is_err() const { return error_.has_value(); }
+    Result(Error error) : _error(std::move(error)) {}
+    bool is_ok() const { return !_error.has_value(); }
+    bool is_err() const { return _error.has_value(); }
     const T& value() const {
-        if (error_) throw std::runtime_error("Result contains an error");
+        if (_error)
+            throw std::runtime_error("Result contains an error");
         return *value_;
     }
     const Error& error() const {
-        if (!error_) throw std::runtime_error("Result does not contain an error");
-        return *error_;
+        if (!_error)
+            throw std::runtime_error("Result does not contain an error");
+        return *_error;
     }
+
 private:
     std::optional<T> value_;
-    std::optional<Error> error_;
+    std::optional<Error> _error;
 };
 
-template<typename T>
-Result<T> Ok(T value) {
+template <typename T>
+inline Result<T> Ok(T value) {
     return Result<T>(std::move(value));
 };
 
 template <typename T>
-Result<T> Err(ErrorCode code, const std::string& message, Severity severity = Severity::MEDIUM) {
+inline Result<T> Err(ErrorCode code, const std::string& message, Severity severity = Severity::MEDIUM) {
     return Result<T>(Error(code, message, severity));
 };
 
+/**
+ * @brief Same as Result class only for void functions
+ * @note User as return type of the function/method
+ */
 class VoidResult {
 public:
-    VoidResult() : state_(std::monostate{}) {}
-    VoidResult(Error error) : state_(std::move(error)) {}
+    VoidResult() = default;                                // Default constructor for success
+    VoidResult(Error error) : _error(std::move(error)) {}  // Constructor for error
 
-    bool is_ok() const { return std::holds_alternative<std::monostate>(state_); }
-    bool is_err() const { return std::holds_alternative<Error>(state_); }
-
-    void value() const {
-        if (is_err()) throw std::runtime_error("Result contains an error");
-    }
-
+    bool is_ok() const { return !_error.has_value(); }
+    bool is_err() const { return _error.has_value(); }
     const Error& error() const {
-        if (is_ok()) throw std::runtime_error("Result does not contain an error");
-        return std::get<Error>(state_);
+        if (!_error)
+            throw std::runtime_error("VoidResult does not contain an error");
+        return *_error;
     }
 
 private:
-    std::variant<std::monostate, Error> state_;
+    std::optional<Error> _error;
 };
 
 inline VoidResult Ok() {
     return VoidResult();
-};
+}
 
 inline VoidResult Err(ErrorCode code, const std::string& message, Severity severity = Severity::MEDIUM) {
     return VoidResult(Error(code, message, severity));
-};
+}
 
 /**
  * @brief Class will hold DRP callbacks for specific error
@@ -178,22 +170,22 @@ public:
      * @brief Register the callback on error
      */
     void register_recovery_action(ErrorCode code, RecoveryAction action) {
-        recovery_actions_[code] = std::move(action);
+        _recovery_actions[code] = std::move(action);
     }
     /**
      * @brief Actual recovery call
      * @return bool
      */
     bool execute_recovery(const Error& error) {
-        auto it = recovery_actions_.find(error.code());
-        if (it != recovery_actions_.end()) {
+        auto it = _recovery_actions.find(error.code());
+        if (it != _recovery_actions.end()) {
             return it->second();
         }
         return false;
     }
 
 private:
-    std::unordered_map<ErrorCode, RecoveryAction> recovery_actions_;
+    std::unordered_map<ErrorCode, RecoveryAction> _recovery_actions;
 };
 
 /**
@@ -216,10 +208,11 @@ public:
     void register_callback(ErrorCode code, ErrorCallback callback) { callbacks_[code] = std::move(callback); }
 
     /**
-     * @brief Handles error
-     * @note Will call DRP action if registered on particular error
-     * @note Also can be added independet callback on particular error
-     * @return bool in case of DRP fail will throw runtime_error
+     * @brief Handles error.
+     * @note Will call DRP action if registered on particular error with level >= HIGH.
+     * @note No need to log error will do automatically.
+     * @note Also can be added independet callback on particular error.
+     * @return bool in case of DRP HIGH or above fail will throw runtime_error & abort.
      */
     bool handle_error(const Error& error) {
         auto it = callbacks_.find(error.code());
@@ -232,6 +225,7 @@ public:
             recovered = drp_.execute_recovery(error);
             if (!recovered && error.severity() == Severity::CRITICAL) {
                 throw std::runtime_error("Critical error: " + error.message());
+                std::abort();
             }
         }
 

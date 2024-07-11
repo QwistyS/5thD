@@ -19,3 +19,4 @@ else()
 endif()
 
 add_subdirectory(test_izmq)
+add_subdirectory(test_receiver)

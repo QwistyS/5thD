@@ -151,39 +151,12 @@ void ZMQBus::_handle_msg(void* sock) {
 
 ZMQBus::~ZMQBus() {
     _router->close();
+    DEBUG("Closed bus");
 }
 
 void ZMQBus::set_security(const char* pub_key, const char* prv_key) {
-    if (!pub_key) {
-        WARN("NO Ecriptions set duo the fact the kye is null");
-        std::abort();
-    }
-    int as_server = 1;
-    int rc = _router->set_sockopt(ZMQ_CURVE_SERVER, &as_server, sizeof(as_server));
-    if (rc != 0) {
-        ERROR("Failed to set CURVE_SERVER option: {}", zmq_strerror(errno));
-        std::abort();
-    }
-
-    rc = _router->set_sockopt(ZMQ_CURVE_PUBLICKEY, pub_key, 40);
-    if (rc != 0) {
-        ERROR("Failed to set CURVE_PUBLICKEY: {}", zmq_strerror(errno));
-        std::abort();
-    }
-
-    rc = _router->set_sockopt(ZMQ_CURVE_SECRETKEY, prv_key, 40);
-    if (rc != 0) {
-        ERROR("Failed to set CURVE_SECRETKEY: {}", zmq_strerror(errno));
-        std::abort();
-    }
-
-    int has_curve;
-    size_t has_curve_size = sizeof(has_curve);
-    _router->get_sockopt(ZMQ_CURVE_SERVER, &has_curve, &has_curve_size);
-    if (has_curve) {
-        WARN("CURVE security is available");
-    } else {
-        ERROR("CURVE security is not available");
+    if(!_router->set_curve_server_options(pub_key, prv_key, 40)) {
+        ERROR("Uncecure server ...");
     }
 }
 

@@ -45,7 +45,6 @@ VoidResult ZMQTransmitter::_connect(const std::string& ip, int port) {
         }
     }
 
-    DEBUG("Connected to {}", endpoint);
     return Ok();
 }
 
@@ -90,6 +89,7 @@ void ZMQTransmitter::connect(const std::string& ip, int port) {
 }
 
 void ZMQTransmitter::close() {
+    WARN("If you need to close the transmitter object, then release/delete it");
 }
 
 void ZMQTransmitter::send(void* data, size_t data_length) const {
