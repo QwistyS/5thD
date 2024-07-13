@@ -1,7 +1,6 @@
 #ifndef SOFTWARE_BUS_H
 #define SOFTWARE_BUS_H
 
-#include "signal.h"
 #include <functional>
 #include <string>
 #include "5htdbuffer.h"
@@ -30,7 +29,7 @@ public:
     ~ZMQBus();
     void set_security(const char* pub_key, const char* prv_key);
     void run();
-    static void singal_handler(int sign);
+    static void signal_handler(int sign);
 
 protected:
     ErrorHandler _error;

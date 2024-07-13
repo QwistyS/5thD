@@ -1,6 +1,4 @@
 #include <zmq.h>
-
-#include "qwistys_macro.h"
 #include "receiver.h"
 
 ZMQWReceiver::~ZMQWReceiver() {
@@ -65,7 +63,7 @@ VoidResult ZMQWReceiver::_close() {
 }
 
 bool ZMQWReceiver::_handle_bind() {
-    WARN("Binding isssue");
+    WARN("Binding issue");
     WARN("Endpoint = {}", _endpoint.c_str());
     WARN("Address = {}", _addr.c_str());
     WARN("Port = {}", _port);
@@ -87,7 +85,7 @@ bool ZMQWReceiver::set_curve_server_options(const char* self_pub_key, const char
     bool ret = false;
 
     if (!self_pub_key || !self_prv_key) {
-        WARN("NO Ecriptions set duo the fact the kye is null");
+        WARN("NO encryption set duo the fact the kye is null");
         return ret;
     }
 

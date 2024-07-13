@@ -1,6 +1,4 @@
-#include <errno.h>
 #include <functional>
-#include <iostream>
 #include <unordered_map>
 
 #include "5thdlogger.h"
@@ -166,7 +164,7 @@ void ZMQBus::run() {
     _router->worker(&_poll, std::bind(&ZMQBus::_handle_msg, this, std::placeholders::_1));
 }
 
-void ZMQBus::singal_handler(int sign) {
+void ZMQBus::signal_handler(int sign) {
     if (sign == SIGINT || sign == SIGTERM) {
         DEBUG("Termination signal received. Cleaning up...");
         _poll = false;

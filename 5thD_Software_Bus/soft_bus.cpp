@@ -1,9 +1,6 @@
 #include <zmq.h>
-#include <chrono>
 #include <memory>
-#include <thread>
 
-#include "5thdsql.h"
 #include "keys_db.h"
 #include "module.h"
 #include "software_bus.h"
@@ -20,7 +17,7 @@ int main() {
     std::unique_ptr<ZMQWContext> ctx = std::make_unique<ZMQWContext>();
     std::unique_ptr<ZMQWSocket> socket = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_ROUTER);
     std::unique_ptr<ZMQWReceiver> recv =
-        std::make_unique<ZMQWReceiver>(CLIENTS_IDS[static_cast<int>(Clients::ROUTER)], 0, ctx.get(), socket.get());
+        std::make_unique<ZMQWReceiver>(CLIENTS_IDS[static_cast<int>(config.client_id)], 0, ctx.get(), socket.get());
     recv->set_endpoint(IPC_ENDPOINT);
     std::unique_ptr<ZMQBus> bus = std::make_unique<ZMQBus>(recv.get());
 
@@ -29,8 +26,8 @@ int main() {
     config.unique_ptrs.emplace_back(recv.get(), Deleter());
     config.unique_ptrs.emplace_back(bus.get(), Deleter());
 
-    signal(SIGINT, bus->singal_handler);
-    signal(SIGTERM, bus->singal_handler);
+    signal(SIGINT, bus->signal_handler);
+    signal(SIGTERM, bus->signal_handler);
 
     bus->set_security(config.keys_info.curve_pub, config.keys_info.curve_prv);
     config.keys_info.deinit();

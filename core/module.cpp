@@ -70,7 +70,7 @@ inline bool _handle_keys(void* conf) {
             // New keys needed
             if (!_get_zmq_curve_keys(db, config->keys_info.curve_pub, config->keys_info.curve_prv, config->client_id)) {
                 if (generate_keys(config->keys_info.curve_pub, config->keys_info.curve_prv) != (int) ErrorCode::OK) {
-                    ERROR("Failt o curve keys");
+                    ERROR("Fail o curve keys");
                     config->keys_info.deinit();
                     return ret;
                 } else {
@@ -124,7 +124,7 @@ VoidResult module_init(module_init_t* config) {
 
 VoidResult module_deinit(module_init_t* config) {
     for (auto it = config->unique_ptrs.rbegin(); it != config->unique_ptrs.rend(); ++it) {
-        it->release();
+        auto ret = it->release();
     }
     return Ok();
 }
