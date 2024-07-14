@@ -38,6 +38,9 @@ file(GLOB PEER_FILES
     "../core/keys_db.cpp"
     "../core/transmitter.cpp"
     "../core/5thdipc_client.cpp"
+    "../core/module.cpp"
+    "../core/5thdallocator.cpp"
+
 )
 
 set(SOURCES peer_module.cpp)

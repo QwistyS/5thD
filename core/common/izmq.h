@@ -1,7 +1,18 @@
 #ifndef IZMQ_H
 #define IZMQ_H
 
+#include <zmq.h>
 #include "5thderror_handler.h"
+
+struct ZMQAllMsg {
+    zmq_msg_t identity;
+    zmq_msg_t empty;
+    zmq_msg_t msg;
+};
+
+void init_allmsg(ZMQAllMsg& msg);
+
+void deinit_allmsg(ZMQAllMsg& msg);
 
 /**
  * @brief ZMQ CURVE API for generating the keys

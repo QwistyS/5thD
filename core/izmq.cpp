@@ -3,6 +3,20 @@
 
 #include "5thderror_handler.h"
 #include "izmq.h"
+#include "5thdipcmsg.h"
+
+void init_allmsg(ZMQAllMsg& msg) {
+    zmq_msg_init_size(&msg.identity, strlen(CLIENTS_IDS[0]));
+    zmq_msg_init_size(&msg.empty, 0);
+    zmq_msg_init_size(&msg.msg, sizeof(ipc_msg_t));
+}
+
+void deinit_allmsg(ZMQAllMsg& msg) {
+    zmq_msg_close(&msg.empty);
+    zmq_msg_close(&msg.identity);
+    zmq_msg_close(&msg.msg);
+}
+
 
 int generate_keys(char* public_key, char* private_key) {
     return zmq_curve_keypair(public_key, private_key);

@@ -1,15 +1,18 @@
 #include <signal.h>
 #include <zmq.h>
 #include <chrono>
+#include <cstring>
 #include <memory>
 #include <thread>
 
 #include "5thderror_handler.h"
 #include "net_helpers.h"
 #include "peer.h"
-
+#include "5thdipcmsg.h"
 #include "5thdsql.h"
 #include "keys_db.h"
+#include "transmitter.h"
+#include "module.h"
 
 // Global flag to indicate if termination signal received
 volatile sig_atomic_t termination_requested = 1;
@@ -24,13 +27,21 @@ void signal_handler(int signum) {
 static ipc_msg_t ipc_peer_msg;
 
 void ipc_msg(ipc_msg_t* msg, int src, int dist) {
+    memset(msg, 0, sizeof(ipc_msg_t));
     msg->src_id = src;
     msg->dist_id = dist;
     msg->timestamp = time(NULL);
 }
 
 int main() {
-    Log::init();
+    module_init_t config;
+    memset(&config, 0, sizeof(module_init_t));
+    config.keys_info.is_ready = false;
+    config.keys_info.key_type = KeyType::CURVE25519;
+    config.client_id = Clients::PEER;
+
+    module_init(&config);;
+
     // Set up signal handler
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
@@ -40,8 +51,6 @@ int main() {
         return 1;
     }
 
-    std::string peer_pub_key;
-    std::string peer_prv_key;
     std::string ipcpub_key;
 
     DatabaseAccess db;
@@ -52,110 +61,47 @@ int main() {
         ERROR("IPCROUT Public key is unavailable");
         std::abort();
     }
+
     ipcpub_key.assign(ipcrout_pub_key.value().begin(), ipcrout_pub_key.value().end());
-
-    // Scope to clear RAM
-    {
-        // Try to get existing keys
-        DEBUG("Attempting to retrieve existing keys");
-        auto public_key_result =
-            get_key(db, CLIENTS_IDS[static_cast<int>(Clients::PEER)], KeyType::CURVE25519, "public_key");
-        auto private_key_result =
-            get_key(db, CLIENTS_IDS[static_cast<int>(Clients::PEER)], KeyType::CURVE25519, "private_key");
-
-        if (public_key_result.is_err() || private_key_result.is_err()) {
-            DEBUG("Keys not found, generating new ones");
-            char public_key_str[41];
-            char private_key_str[41];
-            if (generate_keys(public_key_str, private_key_str) != static_cast<int>(ErrorCode::OK)) {
-                ERROR("Failed to generate keys for router");
-                return 1;
-            }
-            DEBUG("Keys generated: public {}, private {}", public_key_str, private_key_str);
-
-            std::vector<unsigned char> public_key(public_key_str, public_key_str + strlen(public_key_str));
-            std::vector<unsigned char> private_key(private_key_str, private_key_str + strlen(private_key_str));
-
-            auto begin_result = db.begin_transaction();
-            if (begin_result.is_err()) {
-                ERROR("Failed to begin transaction: {}", begin_result.error().message());
-                return 1;
-            }
-
-            DEBUG("Storing public key");
-            auto store_public = store_key(db, CLIENTS_IDS[static_cast<int>(Clients::PEER)], KeyType::CURVE25519,
-                                          "public_key", public_key);
-            if (store_public.is_err()) {
-                ERROR("Failed to store public key: {}", store_public.error().message());
-                db.exec("ROLLBACK");  // Rollback the transaction if storing public key fails
-                return 1;
-            }
-            DEBUG("Public key stored successfully");
-
-            DEBUG("Storing private key");
-            auto store_private = store_key(db, CLIENTS_IDS[static_cast<int>(Clients::PEER)], KeyType::CURVE25519,
-                                           "private_key", private_key);
-            if (store_private.is_err()) {
-                ERROR("Failed to store private key: {}", store_private.error().message());
-                db.exec("ROLLBACK");  // Rollback the transaction if storing private key fails
-                return 1;
-            }
-            DEBUG("Private key stored successfully");
-
-            auto end_result = db.end_transaction();
-            if (end_result.is_err()) {
-                ERROR("Failed to commit transaction: {}", end_result.error().message());
-                return 1;
-            }
-            peer_pub_key.assign(public_key.begin(), public_key.end());
-            peer_prv_key.assign(private_key.begin(), private_key.end());
-
-        } else {
-            DEBUG("Existing keys found");
-
-            peer_pub_key.assign(public_key_result.value().begin(), public_key_result.value().end());
-            peer_prv_key.assign(private_key_result.value().begin(), private_key_result.value().end());
-            QWISTYS_TODO_MSG("Clear the keys from RAM");
-        }
-    }
-
+   
     // Start ipc
-    std::unique_ptr<ZMQWContext> ctx = std::make_unique<ZMQWContext>();
-    std::unique_ptr<ZMQWSocket> ipcsock = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_DEALER);
-    std::unique_ptr<ZMQTransmitter> ipc_trnsm = std::make_unique<ZMQTransmitter>(ctx.get(), ipcsock.get(), CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
+    auto ctx = std::make_unique<ZMQWContext>();
+    auto ipcsock = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_DEALER);
+    auto ipc_trans = std::make_unique<ZMQWTransmitter>(ctx.get(), ipcsock.get(), CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
 
-    int rc = ipc_trnsm->set_sockopt(ZMQ_CURVE_SERVERKEY, ipcpub_key.c_str(), 40);
+    int rc = ipc_trans->set_sockopt(ZMQ_CURVE_SERVERKEY, ipcpub_key.c_str(), 40);
     if (rc != 0) {
         ERROR("Failed to set CURVE_SERVERKEY: {}", zmq_strerror(errno));
     }
-    rc = ipc_trnsm->set_sockopt(ZMQ_CURVE_PUBLICKEY, peer_pub_key.c_str(), 40);
+    rc = ipc_trans->set_sockopt(ZMQ_CURVE_PUBLICKEY, config.keys_info.curve_pub, 40);
     if (rc != 0) {
         ERROR("Failed to set CURVE_PUBLICKEY: {}", zmq_strerror(errno));
     }
-    rc = ipc_trnsm->set_sockopt(ZMQ_CURVE_SECRETKEY, peer_prv_key.c_str(), 40);
+    rc = ipc_trans->set_sockopt(ZMQ_CURVE_SECRETKEY, config.keys_info.curve_prv, 40);
     if (rc != 0) {
         ERROR("Failed to set CURVE_SECRETKEY: {}", zmq_strerror(errno));
     }
 
+    config.keys_info.deinit();
+    ipcpub_key.clear();
+
     
     int timeout_ms = 5000;  // 1 seconds
-    ipc_trnsm->set_sockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
-    ipc_trnsm->set_sockopt(ZMQ_SNDTIMEO, &timeout_ms, sizeof(timeout_ms));
+    ipc_trans->set_sockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
+    ipc_trans->set_sockopt(ZMQ_SNDTIMEO, &timeout_ms, sizeof(timeout_ms));
 
 
-    std::unique_ptr<IpcClient> ipc_client = std::make_unique<IpcClient>(ipc_trnsm.get());
+    std::unique_ptr<IpcClient> ipc_client = std::make_unique<IpcClient>(ipc_trans.get());
     // Register self id.
-    ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::MANAGER);
+    ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::ROUTER);
+
+    print_ipc_msg(&ipc_peer_msg);
+
     while (termination_requested) {
         DEBUG("Sending data");
         ipc_client->send(&ipc_peer_msg);
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
-    // Cleanup
-    ipc_client.release();
-    ipc_trnsm.release();
-    ipcsock.release();
-    ctx.release();
     return 0;
 }

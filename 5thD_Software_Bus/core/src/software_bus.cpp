@@ -1,34 +1,13 @@
+#include <cstring>
 #include <functional>
 #include <unordered_map>
 
+#include "5thdipcmsg.h"
 #include "5thdlogger.h"
 #include "software_bus.h"
 #include "zmq.h"
 
 std::atomic<bool> ZMQBus::_poll(true);  // Initialize as true
-
-void init_allmsg(ZMQAllMsg& msg) {
-    zmq_msg_init_size(&msg.identity, strlen(CLIENTS_IDS[0]));
-    zmq_msg_init(&msg.empty);
-    zmq_msg_init_size(&msg.msg, sizeof(ipc_msg_t));
-}
-
-void deinit_allmsg(ZMQAllMsg& msg) {
-    zmq_msg_close(&msg.empty);
-    zmq_msg_close(&msg.identity);
-    zmq_msg_close(&msg.msg);
-}
-
-void print_ipc_msg(ipc_msg_t* msg) {
-    printf("--- Frame ---\n");
-    printf("src: %d\n", msg->src_id);
-    printf("dist: %d\n", msg->dist_id);
-    printf("timestamp: %ld\n", msg->timestamp);
-    printf("category: %s\n", msg->category);
-    printf("data: ");
-    for (int i = 0; i < DATA_LENGTH_BYTES; i++) printf("%x", msg->data[i]);
-    printf("\n");
-}
 
 VoidResult ZMQBus::_recv_message(void* sock, ipc_msg_t* msg) {
     auto request = _msg_buffer.get_slot();
@@ -90,34 +69,47 @@ VoidResult ZMQBus::_send_message(void* sock, const ipc_msg_t* msg, const std::st
 }
 
 void ZMQBus::_handle_msg(void* sock) {
+    ipc_msg_t data;
     int rc;
     auto all_msg = _msg_buffer.get_slot();
-    ipc_msg_t data;
 
     if (!all_msg) {
-        WARN("Dropping frame.");
+        ERROR("Fail retrieve slot from message buffer");
         return;
     }
+    // RAII cleanup
+    auto buffer_cleanup = [this](decltype(all_msg)* msg_slot) { _msg_buffer.release_slot(msg_slot); };
+    std::unique_ptr<decltype(all_msg), decltype(buffer_cleanup)> all_msg_ptr(&all_msg, buffer_cleanup);
 
+    // Receive identity frame
     rc = zmq_msg_recv(&all_msg->identity, sock, 0);
     if (rc == -1) {
         ERROR("Failed to receive identity: {}", zmq_strerror(zmq_errno()));
         return;
     }
 
+    int64_t more = 1;
+    size_t more_size = sizeof(more);
+    do {
+        zmq_msg_init(&all_msg->msg);
+        rc = zmq_msg_recv(&all_msg->msg, sock, 0);
+        if (rc == 0) {
+            DEBUG("Empty frame received");
+        } else {
+            if (rc == sizeof(ipc_msg_t)) {
+                std::memcpy(&data, zmq_msg_data(&all_msg->msg), rc);
+            }
+        }
+        /* Determine if more message parts are to follow */
+        rc = zmq_getsockopt(sock, ZMQ_RCVMORE, &more, &more_size);
+        zmq_msg_close(&all_msg->msg);
+    } while (more);
+
+    // Copy sender Id
     std::string src_id(static_cast<char*>(zmq_msg_data(&all_msg->identity)), zmq_msg_size(&all_msg->identity));
 
-    rc = zmq_msg_recv(&all_msg->empty, sock, 0);
-    if (rc == -1) {
-        ERROR("Failed to receive delimiter: {}", zmq_strerror(zmq_errno()));
-        return;
-    }
-
-    auto recv_ret = _recv_message(sock, &data);
-    if (recv_ret.is_err()) {
-        ERROR("Failed to receive message");
-        _error.handle_error(recv_ret.error());
-    }
+    DEBUG("Received from id: {}", src_id);
+    print_ipc_msg(&data);
 
     {
         std::lock_guard<std::mutex> lock(_clients_mutex);
@@ -127,15 +119,11 @@ void ZMQBus::_handle_msg(void* sock) {
         }
     }
 
-    DEBUG("Received from id: {}", src_id);
-    // print_ipc_msg(&data);
-
     {
         std::lock_guard<std::mutex> lock(_clients_mutex);
         auto it_dst = _clients.find(data.dist_id);
         if (it_dst == _clients.end()) {
             WARN("The destination: {} never registered", CLIENTS_IDS[data.dist_id]);
-            _msg_buffer.release_slot(&all_msg);
             return;
         }
         auto send_ret = _send_message(sock, &data, it_dst->second);
@@ -144,7 +132,6 @@ void ZMQBus::_handle_msg(void* sock) {
             _error.handle_error(send_ret.error());
         }
     }
-    _msg_buffer.release_slot(&all_msg);
 }
 
 ZMQBus::~ZMQBus() {
@@ -153,7 +140,7 @@ ZMQBus::~ZMQBus() {
 }
 
 void ZMQBus::set_security(const char* pub_key, const char* prv_key) {
-    if(!_router->set_curve_server_options(pub_key, prv_key, 40)) {
+    if (!_router->set_curve_server_options(pub_key, prv_key, 40)) {
         ERROR("Uncecure server ...");
     }
 }

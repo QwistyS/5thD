@@ -3,20 +3,12 @@
 
 #include <functional>
 #include <string>
-#include "5htdbuffer.h"
+
+#include "5thdbuffer.h"
 #include "5thderror_handler.h"
 #include "5thdipcmsg.h"
 #include "receiver.h"
 
-struct ZMQAllMsg {
-    zmq_msg_t identity;
-    zmq_msg_t empty;
-    zmq_msg_t msg;
-};
-
-void init_allmsg(ZMQAllMsg& msg);
-
-void deinit_allmsg(ZMQAllMsg& msg);
 
 class ZMQBus {
 public:

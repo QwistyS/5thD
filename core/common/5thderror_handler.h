@@ -58,6 +58,7 @@ enum class ErrorCode {
     FAIL_DB_EXEC,
     DB_ERROR,
     FAIL_CLOSE_DB,
+    INVALID_IDENTITY,
     MANAGE_BUFF_FULL,
     MANAGE_BUFF_OVERFLOW,
     MANAGE_BUFF_MONKEY,
@@ -214,7 +215,7 @@ public:
      * @note Also can be added independet callback on particular error.
      * @return bool in case of DRP HIGH or above fail will throw runtime_error & abort.
      */
-    bool handle_error(const Error& error) {
+    bool handle_error(const Error& error) const {
         auto it = callbacks_.find(error.code());
         if (it != callbacks_.end()) {
             it->second(error);
@@ -237,7 +238,7 @@ private:
     std::unordered_map<ErrorCode, ErrorCallback> callbacks_;
     DisasterRecoveryPlan& drp_;
 
-    void log_error(const Error& error) {
+    void log_error(const Error& error) const {
         ERROR("[ Severity: {} Error code: {} Error message: {} ]", static_cast<int>(error.severity()),
               static_cast<int>(error.code()), error.message());
     }

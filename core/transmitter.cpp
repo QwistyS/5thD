@@ -1,18 +1,25 @@
 #include "transmitter.h"
+#include <features.h>
 #include <zmq.h>
-#include "qwistys_macro.h"
+#include <algorithm>
+#include <cstddef>
+#include "5thderror_handler.h"
+#include "5thdipcmsg.h"
+#include "5thdlogger.h"
 
-ZMQTransmitter::~ZMQTransmitter() {
+#define DEFAULT_DATA_CHUNK sizeof(ipc_msg_t)
+
+ZMQWTransmitter::~ZMQWTransmitter() {
     close();
 }
 
-void ZMQTransmitter::_init() {
+void ZMQWTransmitter::_init() {
     zmq_setsockopt(_socket->get_socket(), ZMQ_IDENTITY, _identity.c_str(), _identity.size());
 
     _drp.register_recovery_action(ErrorCode::SOCKET_CONNECT_FAIL, [this]() { return _handle_connect(); });
 }
 
-VoidResult ZMQTransmitter::_connect(const std::string& ip, int port) {
+VoidResult ZMQWTransmitter::_connect(const std::string& ip, int port) {
     std::string endpoint;
     if (port == 0) {
         endpoint = ip;
@@ -48,15 +55,10 @@ VoidResult ZMQTransmitter::_connect(const std::string& ip, int port) {
     return Ok();
 }
 
-bool ZMQTransmitter::_handle_connect() {
-    ERROR("Fail to connect");
-    return false;
+void ZMQWTransmitter::set_curve_client_options(const char* server_public_key) {
 }
 
-void ZMQTransmitter::set_curve_client_options(const char* server_public_key) {
-}
-
-void ZMQTransmitter::worker(std::atomic<bool>* until, std::function<void(void*)> callback) {
+void ZMQWTransmitter::worker(std::atomic<bool>* until, std::function<void(void*)> callback) {
     // Poll items setup
     zmq_pollitem_t items[] = {{_socket->get_socket(), 0, ZMQ_POLLIN, 0}};
 
@@ -76,33 +78,106 @@ void ZMQTransmitter::worker(std::atomic<bool>* until, std::function<void(void*)>
     }
 }
 
-int ZMQTransmitter::set_sockopt(int option_name, const void* option_value, size_t option_len) {
+int ZMQWTransmitter::set_sockopt(int option_name, const void* option_value, size_t option_len) {
     return zmq_setsockopt(_socket->get_socket(), option_name, option_value, option_len);
 }
 
-void ZMQTransmitter::connect(const std::string& ip, int port) {
+bool ZMQWTransmitter::connect(const std::string& ip, int port) {
     auto ret = _connect(ip, port);
     if (ret.is_err()) {
-        WARN("Trying to resolve connection");
-        _error.handle_error(ret.error());
+        return _error.handle_error(ret.error());
     }
+    return true;
 }
 
-void ZMQTransmitter::close() {
+void ZMQWTransmitter::close() {
     WARN("If you need to close the transmitter object, then release/delete it");
 }
 
-void ZMQTransmitter::send(void* data, size_t data_length) const {
-    zmq_msg_t message;
-    zmq_msg_init_size(&message, data_length);
-    memcpy(zmq_msg_data(&message), data, data_length);
-    if (zmq_send(_socket->get_socket(), "", 0, ZMQ_SNDMORE) == -1) {
-        WARN("Fail to send identity. Error:{}", zmq_strerror(zmq_errno()));
+bool ZMQWTransmitter::send(void* data, size_t data_length) {
+    auto ret = _send(data, data_length);
+    if (ret.is_err()) {
+        return _error.handle_error(ret.error());
+    }
+    return true;
+}
+
+VoidResult ZMQWTransmitter::_send(void* data, size_t num_bytes) {
+    int rc;
+    size_t min = 0;
+    if (_msg_buffer.is_full().value()) {
+        return Err(ErrorCode::MANAGE_BUFF_FULL, "messages buffer is full", Severity::LOW);
+    }
+    auto all_msg = _msg_buffer.get_slot();
+
+    // RAII cleanup
+    auto buffer_cleanup = [this](decltype(all_msg)* msg_slot) { _msg_buffer.release_slot(msg_slot); };
+    std::unique_ptr<decltype(all_msg), decltype(buffer_cleanup)> all_msg_ptr(&all_msg, buffer_cleanup);
+
+    if (!all_msg) {
+        WARN("Fail to allocate slot");
+        return Err(ErrorCode::MANAGE_BUFF_MONKEY, "IDK what happen :/", Severity::MEDIUM);
     }
 
-    auto ret = zmq_msg_send(&message, _socket->get_socket(), 0);
-    if (ret == -1) {
-        WARN("Fail to send data. Error:{}", zmq_strerror(zmq_errno()));
+    // Ensure identity is valid
+    if (_identity.empty()) {
+        return Err(ErrorCode::INVALID_IDENTITY, "Identity is empty");
     }
-    zmq_msg_close(&message);
+    // Send identity
+    memcpy(zmq_msg_data(&all_msg->identity), _identity.c_str(), _identity.size());
+    rc = zmq_msg_send(&all_msg->identity, _socket->get_socket(), ZMQ_SNDMORE);
+
+    if (rc == -1) {
+        return Err(ErrorCode::FAIL_SEND_FRAME, "Failed to send identity frame");
+    }
+
+    // Send empty
+    rc = zmq_msg_send(&all_msg->empty, _socket->get_socket(), ZMQ_SNDMORE);
+    if (rc == -1) {
+        return Err(ErrorCode::FAIL_SEND_FRAME, "Failed to send empty frame");
+    }
+
+    while (num_bytes > 0) {
+        min = std::min(num_bytes, static_cast<size_t>(DEFAULT_DATA_CHUNK));
+
+        zmq_msg_init_size(&all_msg->msg, min);
+        memcpy(zmq_msg_data(&all_msg->msg), data, min);
+        rc = zmq_msg_send(&all_msg->msg, _socket->get_socket(), (num_bytes > min) ? ZMQ_SNDMORE : 0);
+        DEBUG("Sent {} bytes", rc);
+        if (rc == -1) {
+            zmq_msg_close(&all_msg->msg);
+            return Err(ErrorCode::FAIL_SEND_FRAME, "Failed to send chunk of data");
+        }
+        zmq_msg_close(&all_msg->msg);
+
+        data = static_cast<char*>(data) + min;
+        num_bytes -= min;
+    }
+    return Ok();
+}
+
+bool ZMQWTransmitter::_handle_connect() {
+    WARN("Trying to resolve connect");
+    return false;
+}
+
+bool ZMQWTransmitter::_handle_msg_buff() {
+    auto ret = _msg_buffer.check_integrity();
+    if (ret.is_err()) {
+        return _error.handle_error(ret.error());
+    }
+    return true;
+}
+
+void ZMQWTransmitter::_setup_drp() {
+    // clang-format off
+    _drp.register_recovery_action(ErrorCode::SOCKET_CONNECT_FAIL, 
+        [this]() { 
+            return _handle_connect(); 
+    });
+    _drp.register_recovery_action(ErrorCode::MANAGE_BUFF_FULL, 
+        [this]() { 
+            return _handle_msg_buff();
+    });
+    // clang-format on
 }

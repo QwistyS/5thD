@@ -124,7 +124,7 @@ VoidResult module_init(module_init_t* config) {
 
 VoidResult module_deinit(module_init_t* config) {
     for (auto it = config->unique_ptrs.rbegin(); it != config->unique_ptrs.rend(); ++it) {
-        auto ret = it->release();
+        it->reset();
     }
     return Ok();
 }

@@ -4,7 +4,6 @@
 #include "izmq.h"
 #include "unity.h"
 
-
 std::unique_ptr<ZMQWContext> context;
 std::unique_ptr<ZMQWSocket> socket;
 int port;
@@ -18,8 +17,8 @@ void setUp(void) {
 }
 
 void tearDown(void) {
-    socket.release();
-    context.release();
+    socket.reset();
+    context.reset();
 }
 
 void test_ZMQWContext(void) {
@@ -32,6 +31,7 @@ void test_ZMQWSocket(void) {
 
 
 int main(void) {
+    Log::init();
     UNITY_BEGIN();
     RUN_TEST(test_ZMQWContext);
     RUN_TEST(test_ZMQWSocket);

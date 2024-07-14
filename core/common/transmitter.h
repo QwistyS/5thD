@@ -1,6 +1,7 @@
 #ifndef TRANSMITTER_H_
 #define TRANSMITTER_H_
 
+#include "5thdbuffer.h"
 #include "5thderror_handler.h"
 #include "izmq.h"
 
@@ -12,9 +13,9 @@
 class ITransmitter {
 public:
     virtual ~ITransmitter() = default;
-    virtual void connect(const std::string& ip, int port) = 0;
+    virtual bool connect(const std::string& ip, int port) = 0;
     virtual void close() = 0;
-    virtual void send(void* data, size_t data_length) const = 0;
+    virtual bool send(void* data, size_t num_bytes) = 0;
     virtual void worker(std::atomic<bool>* until, std::function<void(void*)> callback) = 0;
     virtual int set_sockopt(int option_name, const void* option_value, size_t option_len) = 0;
 };
@@ -23,18 +24,18 @@ public:
  * @brief Transmitter class handles all outgoing connections using
  * dependency injection.
  */
-class ZMQTransmitter : public ITransmitter {
+class ZMQWTransmitter : public ITransmitter {
 public:
     /**
      * @brief Destructor cleans all resources.
      */
-    virtual ~ZMQTransmitter();
+    virtual ~ZMQWTransmitter();
 
     /**
      * @brief Constructor
      */
-    ZMQTransmitter(IContext* ctx, ISocket* sock, std::string identity)
-        : _context(ctx), _socket(sock), _error(_drp), _identity(identity) {
+    ZMQWTransmitter(IContext* ctx, ISocket* sock, std::string identity)
+        : _context(ctx), _socket(sock), _error(_drp), _identity(identity), _msg_buffer(init_allmsg, deinit_allmsg) {
         _init();
     };
 
@@ -44,7 +45,7 @@ public:
      * @param port Target port as int.
      * @note This method does not validate the IP address format.
      */
-    void connect(const std::string& ip, int port) override;
+    bool connect(const std::string& ip, int port) override;
 
     /**
      * @brief Closes the active connection.
@@ -55,10 +56,10 @@ public:
     /**
      * @brief Sends data through the active connection.
      * @param data Pointer to data.
-     * @param data_length Size of the data in bytes.
+     * @param num_bytes Size of the data in bytes.
      * @note Currently unimplemented.
      */
-    void send(void* data, size_t data_length) const override;
+    bool send(void* data, size_t num_bytes) override;
 
     /**
      * @brief
@@ -75,7 +76,6 @@ public:
      */
     void set_curve_client_options(const char* server_public_key);
 
-
 protected:
     ErrorHandler _error;
     DisasterRecoveryPlan _drp;
@@ -84,9 +84,14 @@ private:
     IContext* _context;
     ISocket* _socket;
     std::string _identity;
+    ManagedBuffer<ZMQAllMsg, 10> _msg_buffer;
     void _init();
+    void _setup_drp();
+
+    VoidResult _send(void* data, size_t num_bytes);
     VoidResult _connect(const std::string& ip, int port);
     bool _handle_connect();
+    bool _handle_msg_buff();
 };
 
 #endif  // TRANSMITTER_H_

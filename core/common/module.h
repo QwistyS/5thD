@@ -18,8 +18,23 @@ struct KeysInfo{
 };
 
 
+#include <memory>
+#include <vector>
+#include <iostream>
+
+// Deleter struct
 struct Deleter {
-    void operator()(void* ptr) const {}
+    void (*deleter_func)(void*);
+
+    Deleter() : deleter_func(nullptr) {}
+
+    Deleter(void (*func)(void*)) : deleter_func(func) {}
+
+    void operator()(void* ptr) const {
+        if (deleter_func) {
+            deleter_func(ptr);
+        }
+    }
 };
 
 typedef struct {

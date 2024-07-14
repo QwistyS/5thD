@@ -17,6 +17,8 @@ enum Clients { MANAGER = 0, PEER, UI, ROUTER, CLIENTS_TOTAL };
 
 extern const char* CLIENTS_IDS[];
 
+
+
 #if defined(__GNUC__) || defined(__clang__)
 typedef struct __attribute__((packed)) {
     int src_id;
@@ -38,6 +40,8 @@ typedef struct {
 #else
 #    error "Unsupported compiler/platform"
 #endif
+
+void print_ipc_msg(ipc_msg_t* msg);
 
 #ifdef __cplusplus
 }

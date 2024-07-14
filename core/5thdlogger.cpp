@@ -1,6 +1,8 @@
+#include <vector>
 #include "5thdlogger.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 
-std::shared_ptr<spdlog::logger> Log::_logger;
+std::shared_ptr<spdlog::logger> Log::_logger = nullptr;
 
 void Log::init() {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -17,3 +19,4 @@ void Log::init() {
 std::shared_ptr<spdlog::logger> Log::get_logger() {
     return _logger;
 }
+
