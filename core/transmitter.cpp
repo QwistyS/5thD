@@ -6,6 +6,7 @@
 #include "5thderror_handler.h"
 #include "5thdipcmsg.h"
 #include "5thdlogger.h"
+#include "qwistys_macro.h"
 
 #define DEFAULT_DATA_CHUNK sizeof(ipc_msg_t)
 
@@ -34,21 +35,17 @@ VoidResult ZMQWTransmitter::_connect(const std::string& ip, int port) {
     // Poll the socket to check if it is connected
     zmq_pollitem_t poll_items[] = {{_socket->get_socket(), 0, ZMQ_POLLOUT, 0}};
     int timeout_ms = 5000;  // 5 seconds, or set your desired timeout value here
-    int poll_rc = zmq_poll(poll_items, 1, timeout_ms);
 
-    if (poll_rc == -1) {
-        ERROR("zmq_poll failed: %s", zmq_strerror(errno));
-        return Err(ErrorCode::FAIL_POLL_SOCKET, "Init Poll on connetc to " + endpoint);
+    if (int poll_rc = zmq_poll(poll_items, 1, timeout_ms); poll_rc == -1) {
+        return Err(ErrorCode::FAIL_POLL_SOCKET, "Init Poll on connect to " + endpoint);
 
     } else if (poll_rc == 0) {
-        ERROR("Connection timeout after %d milliseconds", timeout_ms);
         return Err(ErrorCode::SOCKET_TIMEOUT, "Timeout waiting for srv " + endpoint);
     } else {
         if (poll_items[0].revents & ZMQ_POLLOUT) {
             DEBUG("Connected to {}", endpoint);
         } else {
-            ERROR("Unexpected poll event: %d", poll_items[0].revents);
-            return Err(ErrorCode::MONKEY, "When tryed to poll on " + endpoint, Severity::HIGH);
+            return Err(ErrorCode::MONKEY, "Unexpected stuff on poll event from zmq " + endpoint, Severity::HIGH);
         }
     }
 
@@ -56,9 +53,10 @@ VoidResult ZMQWTransmitter::_connect(const std::string& ip, int port) {
 }
 
 void ZMQWTransmitter::set_curve_client_options(const char* server_public_key) {
+    QWISTYS_UNIMPLEMENTED();
 }
 
-void ZMQWTransmitter::worker(std::atomic<bool>* until, std::function<void(void*)> callback) {
+void ZMQWTransmitter::worker(std::atomic<bool>* until, const std::function<void(void*)>& callback) {
     // Poll items setup
     zmq_pollitem_t items[] = {{_socket->get_socket(), 0, ZMQ_POLLIN, 0}};
 
@@ -83,8 +81,7 @@ int ZMQWTransmitter::set_sockopt(int option_name, const void* option_value, size
 }
 
 bool ZMQWTransmitter::connect(const std::string& ip, int port) {
-    auto ret = _connect(ip, port);
-    if (ret.is_err()) {
+    if (auto ret = _connect(ip, port); ret.is_err()) {
         return _error.handle_error(ret.error());
     }
     return true;
@@ -94,17 +91,17 @@ void ZMQWTransmitter::close() {
     WARN("If you need to close the transmitter object, then release/delete it");
 }
 
-bool ZMQWTransmitter::send(void* data, size_t data_length) {
-    auto ret = _send(data, data_length);
-    if (ret.is_err()) {
+bool ZMQWTransmitter::send(const std::byte* data, size_t data_length) {
+    if (auto ret = _send(data, data_length); ret.is_err()) {
         return _error.handle_error(ret.error());
     }
     return true;
 }
 
-VoidResult ZMQWTransmitter::_send(void* data, size_t num_bytes) {
+VoidResult ZMQWTransmitter::_send(const std::byte* data, size_t num_bytes) {
     int rc;
     size_t min = 0;
+
     if (_msg_buffer.is_full().value()) {
         return Err(ErrorCode::MANAGE_BUFF_FULL, "messages buffer is full", Severity::LOW);
     }
@@ -138,7 +135,7 @@ VoidResult ZMQWTransmitter::_send(void* data, size_t num_bytes) {
     }
 
     while (num_bytes > 0) {
-        min = std::min(num_bytes, static_cast<size_t>(DEFAULT_DATA_CHUNK));
+        min = std::min(num_bytes, DEFAULT_DATA_CHUNK);
 
         zmq_msg_init_size(&all_msg->msg, min);
         memcpy(zmq_msg_data(&all_msg->msg), data, min);
@@ -150,20 +147,19 @@ VoidResult ZMQWTransmitter::_send(void* data, size_t num_bytes) {
         }
         zmq_msg_close(&all_msg->msg);
 
-        data = static_cast<char*>(data) + min;
+        data += min;
         num_bytes -= min;
     }
     return Ok();
 }
 
-bool ZMQWTransmitter::_handle_connect() {
+bool ZMQWTransmitter::_handle_connect() const {
     WARN("Trying to resolve connect");
     return false;
 }
 
-bool ZMQWTransmitter::_handle_msg_buff() {
-    auto ret = _msg_buffer.check_integrity();
-    if (ret.is_err()) {
+bool ZMQWTransmitter::_handle_msg_buff() const {
+    if (auto ret = _msg_buffer.check_integrity(); ret.is_err()) {
         return _error.handle_error(ret.error());
     }
     return true;

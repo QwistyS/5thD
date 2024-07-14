@@ -28,8 +28,7 @@ VoidResult ZMQBus::_recv_message(void* sock, ipc_msg_t* msg) {
     }
 
     memcpy(msg, zmq_msg_data(&request->msg), sizeof(ipc_msg_t));
-    auto ret = _msg_buffer.release_slot(&request);
-    if (ret.is_err()) {
+    if (auto ret = _msg_buffer.release_slot(&request); ret.is_err()) {
         WARN("Buffer fail to release mem");
     }
     return Ok();
@@ -61,10 +60,10 @@ VoidResult ZMQBus::_send_message(void* sock, const ipc_msg_t* msg, const std::st
         return Err(ErrorCode::FAIL_SEND_FRAME, "Fail to send message frame");
     }
 
-    auto ret = _msg_buffer.release_slot(&replay);
-    if (ret.is_err()) {
+    if (auto ret = _msg_buffer.release_slot(&replay); ret.is_err()) {
         WARN("Buffer fail to release mem");
     }
+
     return Ok();
 }
 
@@ -102,6 +101,9 @@ void ZMQBus::_handle_msg(void* sock) {
         }
         /* Determine if more message parts are to follow */
         rc = zmq_getsockopt(sock, ZMQ_RCVMORE, &more, &more_size);
+        if (rc == -1) {
+            WARN("Couldn't get socket option");
+        }
         zmq_msg_close(&all_msg->msg);
     } while (more);
 

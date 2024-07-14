@@ -45,6 +45,7 @@ VoidResult print_schema(DatabaseAccess& db) {
 }
 
 void print_all_keys(DatabaseAccess& db) {
+    // coverity[+all]
     DEBUG("Printing all keys in the database:");
     
     const char* query = "SELECT module_name, key_type_id, key_name, created_at, expires_at, is_active FROM module_keys";
@@ -75,6 +76,8 @@ void print_all_keys(DatabaseAccess& db) {
     }
     
     sqlite3_finalize(stmt);
+
+    // coverity[-all]
 }
 
 

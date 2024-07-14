@@ -6,13 +6,13 @@
 #include <thread>
 
 #include "5thderror_handler.h"
-#include "net_helpers.h"
-#include "peer.h"
 #include "5thdipcmsg.h"
 #include "5thdsql.h"
 #include "keys_db.h"
-#include "transmitter.h"
 #include "module.h"
+#include "net_helpers.h"
+#include "peer.h"
+#include "transmitter.h"
 
 // Global flag to indicate if termination signal received
 volatile sig_atomic_t termination_requested = 1;
@@ -30,7 +30,7 @@ void ipc_msg(ipc_msg_t* msg, int src, int dist) {
     memset(msg, 0, sizeof(ipc_msg_t));
     msg->src_id = src;
     msg->dist_id = dist;
-    msg->timestamp = time(NULL);
+    msg->timestamp = time(nullptr);
 }
 
 int main() {
@@ -40,7 +40,7 @@ int main() {
     config.keys_info.key_type = KeyType::CURVE25519;
     config.client_id = Clients::PEER;
 
-    module_init(&config);;
+    module_init(&config);
 
     // Set up signal handler
     signal(SIGINT, signal_handler);
@@ -63,11 +63,11 @@ int main() {
     }
 
     ipcpub_key.assign(ipcrout_pub_key.value().begin(), ipcrout_pub_key.value().end());
-   
+
     // Start ipc
     auto ctx = std::make_unique<ZMQWContext>();
     auto ipcsock = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_DEALER);
-    auto ipc_trans = std::make_unique<ZMQWTransmitter>(ctx.get(), ipcsock.get(), CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
+    auto ipc_trans = std::make_unique<ZMQWTransmitter>(ipcsock.get(), CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
 
     int rc = ipc_trans->set_sockopt(ZMQ_CURVE_SERVERKEY, ipcpub_key.c_str(), 40);
     if (rc != 0) {
@@ -85,13 +85,11 @@ int main() {
     config.keys_info.deinit();
     ipcpub_key.clear();
 
-    
     int timeout_ms = 5000;  // 1 seconds
     ipc_trans->set_sockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
     ipc_trans->set_sockopt(ZMQ_SNDTIMEO, &timeout_ms, sizeof(timeout_ms));
 
-
-    std::unique_ptr<IpcClient> ipc_client = std::make_unique<IpcClient>(ipc_trans.get());
+    auto ipc_client = std::make_unique<IpcClient>(ipc_trans.get());
     // Register self id.
     ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::ROUTER);
 
