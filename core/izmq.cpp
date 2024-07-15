@@ -2,8 +2,9 @@
 #include <zmq.h>
 
 #include "5thderror_handler.h"
-#include "izmq.h"
 #include "5thdipcmsg.h"
+#include "5thdlogger.h"
+#include "izmq.h"
 
 void init_allmsg(ZMQAllMsg& msg) {
     zmq_msg_init_size(&msg.identity, strlen(CLIENTS_IDS[0]));
@@ -17,7 +18,6 @@ void deinit_allmsg(ZMQAllMsg& msg) {
     zmq_msg_close(&msg.msg);
 }
 
-
 int generate_keys(char* public_key, char* private_key) {
     return zmq_curve_keypair(public_key, private_key);
 }
@@ -25,7 +25,14 @@ int generate_keys(char* public_key, char* private_key) {
 // ================ Context wrapper implementation ================
 
 ZMQWContext::~ZMQWContext() {
-    _close();
+    DEBUG("Close context");
+}
+
+bool ZMQWContext::close() {
+    if (auto ret = _close(); ret.is_err()) {
+        return _error.handle_error(ret.error());
+    }
+    return true;
 }
 
 void* ZMQWContext::get_context() {
@@ -55,12 +62,12 @@ bool ZMQWContext::_handle_context_create() {
     return false;
 }
 
-void ZMQWContext::_close() {
+VoidResult ZMQWContext::_close() {
     if (zmq_ctx_destroy(_context) != (int) ErrorCode::OK) {
-        ERROR("Fail to close zmq context");
+        Err(ErrorCode::FAIL_CLOSE_ZQM_CTX, "Fail to close zmq context");
     }
     _context = nullptr;
-    DEBUG("Closed zmq ctx");
+    return Ok();
 }
 
 Result<void*> ZMQWContext::_create_context() {

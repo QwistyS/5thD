@@ -23,42 +23,40 @@ public:
      * @brief
      */
     T* get_slot();
-    
+
     /**
      * @brief
      */
     Result<bool> release_slot(T** slot_ptr);
-    
+
     /**
      * @brief
      */
     Result<bool> is_empty() const;
-    
+
     /**
      * @brief
      */
     Result<bool> is_full() const;
-    
+
     /**
      * @brief
      */
     Result<size_t> size() const;
-    
+
     /**
      * @brief
      */
     constexpr size_t capacity() const;
-    
+
     /**
      * @brief
      */
     VoidResult check_integrity() const;
 
-protected:
+private:
     ErrorHandler _error;
     DisasterRecoveryPlan _drp;
-
-private:
     static constexpr uint64_t CANARY_VALUE = 0xDEADBEEFCAFEBABE;
 
     struct Metadata {
@@ -83,7 +81,7 @@ private:
     VoidResult check_canary(const Slot* slot) const;
     void _init();
     void _setup_drp();
-    bool _handle_canary();
+    bool _handle_canary() const;
 };
 
 template <typename T, size_t Size>
@@ -101,7 +99,7 @@ inline ManagedBuffer<T, Size>::~ManagedBuffer() {
 
 template <typename T, size_t Size>
 T* ManagedBuffer<T, Size>::get_slot() {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::scoped_lock<std::mutex> lock(_mutex);
     if (used_count == Size) {
         return nullptr;
     }
@@ -120,10 +118,10 @@ Result<bool> ManagedBuffer<T, Size>::release_slot(T** slot_ptr) {
         return Err<bool>(ErrorCode::MANAGE_BUFF_NULL_ON_RELEASE, "Null was given to release");
     }
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::scoped_lock<std::mutex> lock(_mutex);
 
-    Slot* slot = reinterpret_cast<Slot*>(reinterpret_cast<char*>(*slot_ptr) - offsetof(Slot, data));
-
+    auto slot = reinterpret_cast<Slot*>(reinterpret_cast<char*>(*slot_ptr) - offsetof(Slot, data));
+    
     if (slot < &_buffer[0] || slot >= &_buffer[Size]) {
         return Err<bool>(ErrorCode::MANAGE_BUFF_SLOT_NOT_IN_RANGE, "Slot not in range of buffer memory");
     }
@@ -132,14 +130,11 @@ Result<bool> ManagedBuffer<T, Size>::release_slot(T** slot_ptr) {
         return Err<bool>(ErrorCode::MANAGE_BUFF_MONKEY, "Slot is not in use");
     }
 
-    auto canary_ret = check_canary(slot);
-    if (canary_ret.is_err()) {
-        if (!_error.handle_error(canary_ret.error())) {
-            std::abort();
-        }
+    if (auto canary_ret = check_canary(slot); canary_ret.is_err() && !_error.handle_error(canary_ret.error())) {
+        std::abort();
     }
 
-    size_t released_index = static_cast<size_t>(slot - &_buffer[0]);
+    auto released_index = static_cast<size_t>(slot - &_buffer[0]);
 
     slot->meta.in_use = false;
 
@@ -153,19 +148,19 @@ Result<bool> ManagedBuffer<T, Size>::release_slot(T** slot_ptr) {
 
 template <typename T, size_t Size>
 Result<bool> ManagedBuffer<T, Size>::is_empty() const {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::scoped_lock<std::mutex> lock(_mutex);
     return Ok<bool>(used_count == 0);
 }
 
 template <typename T, size_t Size>
 Result<bool> ManagedBuffer<T, Size>::is_full() const {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::scoped_lock<std::mutex> lock(_mutex);
     return Ok<bool>(used_count == Size);
 }
 
 template <typename T, size_t Size>
 Result<size_t> ManagedBuffer<T, Size>::size() const {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::scoped_lock<std::mutex> lock(_mutex);
     return Ok<size_t>(used_count);
 }
 
@@ -176,13 +171,10 @@ constexpr size_t ManagedBuffer<T, Size>::capacity() const {
 
 template <typename T, size_t Size>
 VoidResult ManagedBuffer<T, Size>::check_integrity() const {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::scoped_lock<std::mutex> lock(_mutex);
     for (const auto& slot : _buffer) {
-        auto canary_ret = check_canary(&slot);
-        if (canary_ret.is_err()) {
-            if (!_error.handle_error(canary_ret.error())) {
-                std::abort();
-            }
+        if (auto canary_ret = check_canary(&slot); canary_ret.is_err() && !_error.handle_error(canary_ret.error())) {
+            std::abort();
         }
     }
     return Ok();
@@ -216,7 +208,7 @@ void ManagedBuffer<T, Size>::_setup_drp() {
 }
 
 template <typename T, size_t Size>
-bool ManagedBuffer<T, Size>::_handle_canary() {
+bool ManagedBuffer<T, Size>::_handle_canary() const {
     return false;
 }
 

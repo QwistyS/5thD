@@ -6,7 +6,7 @@
 
 std::unique_ptr<ZMQWContext> context;
 std::unique_ptr<ZMQWSocket> socket;
-int port;
+int port = 0;
 std::string endpoint;
 
 void setUp(void) {
@@ -18,6 +18,7 @@ void setUp(void) {
 
 void tearDown(void) {
     socket.reset();
+    context->close();
     context.reset();
 }
 

@@ -2,6 +2,8 @@
 #define TRANSMITTER_H_
 
 #include <cstddef>
+#include <string>
+#include <string_view>
 #include "5thdbuffer.h"
 #include "5thderror_handler.h"
 #include "izmq.h"
@@ -14,7 +16,8 @@
 class ITransmitter {
 public:
     virtual ~ITransmitter() = default;
-    virtual bool connect(const std::string& ip, int port) = 0;
+    virtual bool connect(const std::string_view ip, int port) = 0;
+    virtual bool disconnect(const std::string_view ip, int port) = 0;
     virtual void close() = 0;
     virtual bool send(const std::byte* data, size_t num_bytes) = 0;
     virtual void worker(std::atomic<bool>* until, const std::function<void(void*)>& callback) = 0;
@@ -46,8 +49,12 @@ public:
      * @param port Target port as int.
      * @note This method does not validate the IP address format.
      */
-    bool connect(const std::string& ip, int port) override;
+    bool connect(const std::string_view ip, int port) override;
 
+    /**
+    * @brief
+    */
+    bool disconnect(const std::string_view ip, int port) override;
     /**
      * @brief Closes the active connection.
      * @note This method will reset _socket to nullptr.
@@ -87,7 +94,8 @@ private:
     void _setup_drp();
 
     VoidResult _send(const std::byte* data, size_t num_bytes);
-    VoidResult _connect(const std::string& ip, int port);
+    VoidResult _connect(const std::string_view ip, int port);
+    VoidResult _disconnect(std::string_view ip, int port);
     bool _handle_connect() const;
     bool _handle_msg_buff() const;
 };

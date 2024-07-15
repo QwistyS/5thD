@@ -23,6 +23,7 @@ enum class ErrorCode {
     SOCKET_SEND_FAIL,
     SOCKET_TIMEOUT,
     SOCKET_CONNECT_FAIL,
+    SOCKET_DISCONNECT_FAIL,
     FAIL_POLL_SOCKET,
     SEND_HEARTBEAT_FAIL,
     FAIL_CLOSE_ZQM_CTX,
@@ -31,12 +32,13 @@ enum class ErrorCode {
     FAIL_OPEN_SOCKET,
     FAIL_TO_BIND,
     FAIL_BIND_SOCKET,
+    FAIL_UNBIND_SOCKET,
     FAIL_INIT_LISTENER,
     FAIL_INIT_KEYS,
     FAIL_SET_SOCKOPT,
     FAIL_SETSOCKOPT_ID,
     FAIL_UPNP_FORWARD,
-    FIAIL_RECV_MSG,
+    FAIL_RECV_MSG,
     FAIL_SEND_FRAME,
     NO_OBJECT,
     OBJ_RECEIVER_INIT_FAIL,
@@ -64,6 +66,7 @@ enum class ErrorCode {
     MANAGE_BUFF_MONKEY,
     MANAGE_BUFF_NULL_ON_RELEASE,
     MANAGE_BUFF_SLOT_NOT_IN_RANGE,
+    FAIL_START_PROC,
     MONKEY,
     TOTAL
 };
@@ -98,8 +101,8 @@ private:
 template <typename T>
 class Result {
 public:
-    Result(T value) : value_(std::move(value)) {}
-    Result(Error error) : _error(std::move(error)) {}
+    explicit Result(T value) : value_(std::move(value)) {}
+    explicit Result(Error error) : _error(std::move(error)) {}
     bool is_ok() const { return !_error.has_value(); }
     bool is_err() const { return _error.has_value(); }
     const T& value() const {
@@ -134,8 +137,8 @@ inline Result<T> Err(ErrorCode code, const std::string& message, Severity severi
  */
 class VoidResult {
 public:
-    VoidResult() = default;                                // Default constructor for success
-    VoidResult(Error error) : _error(std::move(error)) {}  // Constructor for error
+    explicit VoidResult() = default;                                // Default constructor for success
+    explicit VoidResult(Error error) : _error(std::move(error)) {}  // Constructor for error
 
     bool is_ok() const { return !_error.has_value(); }
     bool is_err() const { return _error.has_value(); }
@@ -178,8 +181,8 @@ public:
      * @return bool
      */
     bool execute_recovery(const Error& error) {
-        auto it = _recovery_actions.find(error.code());
-        if (it != _recovery_actions.end()) {
+        if (auto it = _recovery_actions.find(error.code()); it != _recovery_actions.end()) {
+            // Holds actual callback
             return it->second();
         }
         return false;
@@ -199,7 +202,7 @@ public:
      */
     using ErrorCallback = std::function<void(const Error&)>;
 
-    ErrorHandler(DisasterRecoveryPlan& drp) : drp_(drp) {}
+    explicit ErrorHandler(DisasterRecoveryPlan& drp) : drp_(drp) {}
 
     /**
      * @brief Register a callback on specific erro
@@ -216,8 +219,7 @@ public:
      * @return bool in case of DRP HIGH or above fail will throw runtime_error & abort.
      */
     bool handle_error(const Error& error) const {
-        auto it = callbacks_.find(error.code());
-        if (it != callbacks_.end()) {
+        if (auto it = callbacks_.find(error.code()); it != callbacks_.end()) {
             it->second(error);
         }
 
@@ -225,7 +227,7 @@ public:
         if (error.severity() >= Severity::HIGH) {
             recovered = drp_.execute_recovery(error);
             if (!recovered && error.severity() == Severity::CRITICAL) {
-                throw std::runtime_error("Critical error: " + error.message());
+                ERROR("BAD ERROR: {}", error.message());
                 std::abort();
             }
         }

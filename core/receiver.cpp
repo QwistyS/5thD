@@ -1,8 +1,9 @@
-#include <zmq.h>
 #include "receiver.h"
+#include <zmq.h>
+#include "5thderror_handler.h"
+#include "5thdlogger.h"
 
 ZMQWReceiver::~ZMQWReceiver() {
-    close();
     DEBUG("Closed receiver");
 }
 
@@ -23,9 +24,9 @@ void ZMQWReceiver::worker(std::atomic<bool>* until, std::function<void(void*)> c
     DEBUG("Polling thread started");
 
     while (*until) {
-        auto ret = zmq_poll(items, 1, 500);  // Poll with 500 ms timeout
+        int ret = zmq_poll(items, 1, 500);  // Poll with 500 ms timeout
 
-        if (ret == (int) ErrorCode::OK) {
+        if (ret == 0) {  // Timeout
             DEBUG("Timeout reached");
             continue;
         } else if (ret == -1) {
@@ -34,7 +35,31 @@ void ZMQWReceiver::worker(std::atomic<bool>* until, std::function<void(void*)> c
         } else {
             if (items[0].revents & ZMQ_POLLIN) {
                 DEBUG("Message received");
-                callback(_socket->get_socket());
+                if (callback == nullptr) {
+                    DEBUG("No callback provided flushing Q");
+                    zmq_msg_t msg;
+                    int more = 0;
+                    size_t more_size = sizeof(more);
+                    do {
+                        zmq_msg_init(&msg);
+                        int rc = zmq_msg_recv(&msg, _socket->get_socket(), 0);
+                        if (rc == -1) {
+                            ERROR("Error receiving message: {}", zmq_strerror(zmq_errno()));
+                            zmq_msg_close(&msg);
+                            break;
+                        }
+
+                        DEBUG("Message part received: {}", zmq_msg_size(&msg));
+                        zmq_msg_close(&msg);
+
+                        // Check if more message parts are to follow
+                        zmq_getsockopt(_socket->get_socket(), ZMQ_RCVMORE, &more, &more_size);
+                    } while (more);
+
+                    *until = false;  // Kill the poll
+                } else {
+                    callback(_socket->get_socket());
+                }
             }
         }
     }
@@ -47,6 +72,7 @@ VoidResult ZMQWReceiver::_listen() {
         endpoint = _endpoint;
     } else {
         endpoint = "tcp://" + _addr + ":" + std::to_string(_port);
+        _endpoint = endpoint;
     }
 
     if (zmq_bind(_socket->get_socket(), endpoint.c_str()) != (int) ErrorCode::OK) {
@@ -59,6 +85,9 @@ VoidResult ZMQWReceiver::_listen() {
 }
 
 VoidResult ZMQWReceiver::_close() {
+    if (auto ret = zmq_unbind(_socket->get_socket(), _endpoint.c_str()); ret != (int) ErrorCode::OK) {
+        return Err(ErrorCode::FAIL_BIND_SOCKET, "Fail to unbind on " + _endpoint);
+    }
     return Ok();
 }
 
@@ -72,16 +101,14 @@ bool ZMQWReceiver::_handle_bind() {
 }
 
 bool ZMQWReceiver::listen() {
-    auto ret = _listen();
-    if (ret.is_err()) {
-        DEBUG("Error {}", ret.error().message());
+    if (auto ret = _listen(); ret.is_err()) {
         return _error.handle_error(ret.error());
     }
     return true;
 }
 
 bool ZMQWReceiver::set_curve_server_options(const char* self_pub_key, const char* self_prv_key,
-                                           size_t key_length_bytes) {
+                                            size_t key_length_bytes) {
     bool ret = false;
 
     if (!self_pub_key || !self_prv_key) {
@@ -138,9 +165,10 @@ int ZMQWReceiver::get_sockopt(int option_name, void* option_value, size_t* optio
     return zmq_getsockopt(_socket->get_socket(), option_name, option_value, option_len);
 }
 
-void ZMQWReceiver::close() {
-    auto ret = _close();
-    if (ret.is_err()) {
-        _error.handle_error(ret.error());
+bool ZMQWReceiver::close() {
+    if (auto ret = _close(); ret.is_err()) {
+        return _error.handle_error(ret.error());
     }
+    DEBUG("Unbind on {}", _endpoint);
+    return true;
 }

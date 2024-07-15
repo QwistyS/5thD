@@ -20,11 +20,11 @@ VoidResult ZMQBus::_recv_message(void* sock, ipc_msg_t* msg) {
 
     rc = zmq_msg_recv(&request->msg, sock, 0);
     if (rc == -1) {
-        return Err(ErrorCode::FIAIL_RECV_MSG, "Failed to receive message");
+        return Err(ErrorCode::FAIL_RECV_MSG, "Failed to receive message");
     }
 
     if (zmq_msg_size(&request->msg) != sizeof(ipc_msg_t)) {
-        return Err(ErrorCode::FIAIL_RECV_MSG, "Message size wierd :/");
+        return Err(ErrorCode::FAIL_RECV_MSG, "Message size weird :/");
     }
 
     memcpy(msg, zmq_msg_data(&request->msg), sizeof(ipc_msg_t));
@@ -114,23 +114,18 @@ void ZMQBus::_handle_msg(void* sock) {
     print_ipc_msg(&data);
 
     {
-        std::lock_guard<std::mutex> lock(_clients_mutex);
-        auto it_src = _clients.find(data.src_id);
-        if (it_src == _clients.end()) {
-            _clients.insert({data.src_id, src_id});
+        std::scoped_lock<std::mutex> lock(_clients_mutex);
+        if (auto it_src = _clients.find(data.src_id); it_src == _clients.end()) {
+            _clients[data.src_id] = src_id;
         }
-    }
 
-    {
-        std::lock_guard<std::mutex> lock(_clients_mutex);
         auto it_dst = _clients.find(data.dist_id);
         if (it_dst == _clients.end()) {
             WARN("The destination: {} never registered", CLIENTS_IDS[data.dist_id]);
             return;
         }
-        auto send_ret = _send_message(sock, &data, it_dst->second);
-        if (send_ret.is_err()) {
-            ERROR("Failed to send message");
+        if (auto send_ret = _send_message(sock, &data, it_dst->second); send_ret.is_err()) {
+            WARN("Fait send message Error {}", send_ret.error().message());
             _error.handle_error(send_ret.error());
         }
     }
@@ -143,7 +138,7 @@ ZMQBus::~ZMQBus() {
 
 void ZMQBus::set_security(const char* pub_key, const char* prv_key) {
     if (!_router->set_curve_server_options(pub_key, prv_key, 40)) {
-        ERROR("Uncecure server ...");
+        ERROR("Unsecure server ...");
     }
 }
 

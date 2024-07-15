@@ -35,7 +35,6 @@ void ipc_msg(ipc_msg_t* msg, int src, int dist) {
 
 int main() {
     module_init_t config;
-    memset(&config, 0, sizeof(module_init_t));
     config.keys_info.is_ready = false;
     config.keys_info.key_type = KeyType::CURVE25519;
     config.client_id = Clients::PEER;
@@ -46,10 +45,6 @@ int main() {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
-    if (sodium_init() < 0) {
-        ERROR("Failed to initialize libsodium");
-        return 1;
-    }
 
     std::string ipcpub_key;
 

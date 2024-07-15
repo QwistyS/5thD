@@ -3,6 +3,8 @@
 #include <zmq.h>
 #include <algorithm>
 #include <cstddef>
+#include <string>
+#include <string_view>
 #include "5thderror_handler.h"
 #include "5thdipcmsg.h"
 #include "5thdlogger.h"
@@ -11,7 +13,7 @@
 #define DEFAULT_DATA_CHUNK sizeof(ipc_msg_t)
 
 ZMQWTransmitter::~ZMQWTransmitter() {
-    close();
+    DEBUG("Closed transmitter");
 }
 
 void ZMQWTransmitter::_init() {
@@ -20,12 +22,12 @@ void ZMQWTransmitter::_init() {
     _drp.register_recovery_action(ErrorCode::SOCKET_CONNECT_FAIL, [this]() { return _handle_connect(); });
 }
 
-VoidResult ZMQWTransmitter::_connect(const std::string& ip, int port) {
+VoidResult ZMQWTransmitter::_connect(const std::string_view ip, int port) {
     std::string endpoint;
     if (port == 0) {
         endpoint = ip;
     } else {
-        endpoint = "tcp://" + ip + ":" + std::to_string(port);
+        endpoint = "tcp://" + std::string(ip) + ":" + std::to_string(port);
     }
 
     if (zmq_connect(_socket->get_socket(), endpoint.c_str()) != (int) ErrorCode::OK) {
@@ -49,6 +51,14 @@ VoidResult ZMQWTransmitter::_connect(const std::string& ip, int port) {
         }
     }
 
+    return Ok();
+}
+
+VoidResult ZMQWTransmitter::_disconnect(std::string_view ip, int port) {
+    auto endpoint = "tcp://" + std::string(ip) + ":" + std::to_string(port);
+    if (auto rc = zmq_disconnect(_socket->get_socket(), endpoint.c_str()); rc != (int)ErrorCode::OK) {
+        Err(ErrorCode::SOCKET_DISCONNECT_FAIL, "Fail to disconnect from " + endpoint);
+    }
     return Ok();
 }
 
@@ -80,10 +90,18 @@ int ZMQWTransmitter::set_sockopt(int option_name, const void* option_value, size
     return zmq_setsockopt(_socket->get_socket(), option_name, option_value, option_len);
 }
 
-bool ZMQWTransmitter::connect(const std::string& ip, int port) {
+bool ZMQWTransmitter::connect(const std::string_view ip, int port) {
     if (auto ret = _connect(ip, port); ret.is_err()) {
         return _error.handle_error(ret.error());
     }
+    return true;
+}
+
+bool ZMQWTransmitter::disconnect(const std::string_view ip, int port) {
+    if (auto ret = _disconnect(ip, port); ret.is_err()) {
+        return _error.handle_error(ret.error());
+    }
+    DEBUG("Disconnected from {}:{}", ip, port);
     return true;
 }
 

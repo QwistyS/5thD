@@ -5,6 +5,7 @@
 #include "module.h"
 #include "software_bus.h"
 
+
 int main() {
     module_init_t config;
     memset(&config, 0, sizeof(module_init_t));
@@ -28,7 +29,7 @@ int main() {
     config.keys_info.deinit();
 
     bus->run();
-    
+
     DEBUG("Clearing router...");
     return 0;
 }

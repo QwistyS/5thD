@@ -1,13 +1,14 @@
 #ifndef RECEIVER_H
 #define RECEIVER_H
 
+#include <string_view>
 #include "izmq.h"
 
 class IReceiver {
 public:
     virtual ~IReceiver() = default;
     virtual bool listen() = 0;
-    virtual void close() = 0;
+    virtual bool close() = 0;
     virtual int get_port() const = 0;
     virtual void worker(std::atomic<bool>* until, std::function<void(void*)> callback) = 0;
     virtual bool set_endpoint(const char* endpoint) = 0;
@@ -19,13 +20,13 @@ public:
 
 class ZMQWReceiver : public IReceiver {
 public:
-    virtual ~ZMQWReceiver();
-    ZMQWReceiver(std::string addr, int port, IContext* ctx, ISocket* socket)
-        : _addr(addr), _port(port), _ctx(ctx), _socket(socket), _error(_drp) {
+    ~ZMQWReceiver() override;
+    ZMQWReceiver(const std::string_view addr, int port, ISocket* socket)
+        : _error(_drp), _port(port), _socket(socket), _addr(addr) {
         _init();
     };
     bool listen() override;
-    void close() override;
+    bool close() override;
     void worker(std::atomic<bool>* until, std::function<void(void*)> callback) override;
     int get_port() const override { return _port; }
     bool set_curve_server_options(const char* self_pub_key, const char* self_prv_key, size_t key_length_bytes) override;
@@ -40,7 +41,6 @@ protected:
 private:
     int _port;
     int _poll;
-    IContext* _ctx;
     ISocket* _socket;
     std::string _addr;
     void _init();

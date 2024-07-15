@@ -7,7 +7,6 @@
 #include "transmitter.h"
 #include "unity.h"
 
-
 std::unique_ptr<ZMQWContext> context;
 std::unique_ptr<ZMQWSocket> socket;
 std::unique_ptr<ZMQWSocket> srv_sock;
@@ -22,37 +21,59 @@ void setUp(void) {
     context = std::make_unique<ZMQWContext>();
     srv_sock = std::make_unique<ZMQWSocket>(context.get(), ZMQ_REP);
     socket = std::make_unique<ZMQWSocket>(context.get(), ZMQ_REQ);
-    trans = std::make_unique<ZMQWTransmitter>(context.get(), socket.get(), "test_transmitter");
-    srv = std::make_unique<ZMQWReceiver>(endpoint, port, context.get(), srv_sock.get());
+    trans = std::make_unique<ZMQWTransmitter>(socket.get(), "test_transmitter");
+    srv = std::make_unique<ZMQWReceiver>(endpoint, port, srv_sock.get());
+    srv->listen();
 }
 
 void tearDown(void) {
-    srv.reset();
-    trans.reset();
-    socket.reset();
-    srv_sock.reset();
-    context.reset();
+    // clang-format off
+    trans->disconnect(endpoint, port);   // Disconnect
+    socket.reset();     // Reset socket
+    trans.reset();      // Ensure transmitter close first
+
+    srv->close();       // Unbind
+    srv_sock.reset();   // Reset the socket before closing the context
+    srv.reset();        // Ensure receiver is properly closed first
+
+    context->close();   // Close the context
+    context.reset();    // Reset the context
+    // clang-format on
 }
 
-void test_ZMQWTrans_connect(void) {
-    srv->listen();
+void test_ZMQWTransmitter_connect(void) {
     TEST_ASSERT(trans->connect(endpoint, port));
+    TEST_ASSERT(trans->disconnect(endpoint, port));
 }
 
-void test_ZMQWTrans_send(void) {
+void test_ZMQWTransmitter_send(void) {
     int data = 0xFFFFFFFF;
-    srv->listen();
     trans->connect(endpoint, port);
+    std::atomic<bool> until = true;
 
-    auto ret =trans->send(&data, sizeof(data));
+    // Create and start the worker thread
+    auto t = std::thread(&ZMQWReceiver::worker, srv.get(), &until, nullptr);
+
+    // Send the message
+    auto ret = trans->send(reinterpret_cast<const std::byte*>(&data), sizeof(data));
     TEST_ASSERT(ret);
+
+    // Allow some time for the message to be processed
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Signal the worker thread to stop and join the thread
+    until = false;
+    if (t.joinable()) {
+        t.join();
+    }
 }
+
 
 int main(void) {
     Log::init();
-    
+
     UNITY_BEGIN();
-    RUN_TEST(test_ZMQWTrans_connect);
-    RUN_TEST(test_ZMQWTrans_send);
+    RUN_TEST(test_ZMQWTransmitter_connect);
+    RUN_TEST(test_ZMQWTransmitter_send);
     return UNITY_END();
 }

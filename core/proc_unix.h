@@ -2,40 +2,41 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <stdexcept>
 
-#include "5thderror_handler.h"
+#include "5thdlogger.h"
 #include "iproc_manager.h"
 
 class UnixProcessManager : public IProcessManager {
 public:
     UnixProcessManager() : _error(_drp) { _init(); }
 
-    void start_proc(const std::string& name, const std::string& command) override {
-        pid_t pid = fork();
-        if (pid == 0) {
+    VoidResult start_proc(const std::string& name, const std::string& command) override {
+        if (pid_t pid = fork(); pid == 0) {
             // Child process
             execl("/bin/sh", "sh", "-c", command.c_str(), (char*) nullptr);
             exit(1);
         } else if (pid > 0) {
             // Parent process
             _processes[name] = pid;
-            std::cout << "Started " << name << " with PID " << pid << std::endl;
+            DEBUG("Proccess {} started", name);
         } else {
-            throw std::runtime_error("Fork failed");
+            return Err(ErrorCode::FAIL_START_PROC, "Fail to start proccess ");
         }
+        return Ok();
     }
 
     void stop_proc(const std::string& name) override {
         auto it = _processes.find(name);
         if (it != _processes.end()) {
             kill(it->second, SIGTERM);
-            std::cout << "Stopped " << name << " with PID " << it->second << std::endl;
+            DEBUG("Stopped proc pid {}", it->second);
             _processes.erase(it);
         } else {
-            std::cout << "Process " << name << " not found" << std::endl;
+            WARN("Proccess {} not found", name);
         }
     }
 
@@ -47,22 +48,19 @@ public:
     }
 
     long long get_pid(const std::string& name) override {
-        auto it = _processes.find(name);
-        if (it != _processes.end()) {
+        if (auto it = _processes.find(name); it != _processes.end()) {
             return static_cast<long long>(it->second);
         }
         return -1;
     }
 
-protected:
+private:
     ErrorHandler _error;
     DisasterRecoveryPlan _drp;
-
-private:
-    std::map<std::string, pid_t> _processes;
+    std::map<std::string, pid_t, std::less<>> _processes;
     void _init() {};
 };
 
-IProcessManager* create_proc_manager() {
-    return new UnixProcessManager();
+inline std::unique_ptr<IProcessManager> create_proc_manager() {
+    return std::make_unique<UnixProcessManager>();
 }

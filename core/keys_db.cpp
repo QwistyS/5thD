@@ -2,7 +2,6 @@
 #include <iomanip>
 #include <sstream>
 
-
 VoidResult check_key_types(DatabaseAccess& db) {
     std::string sql = "SELECT type_name FROM key_types;";
     sdbret_t result;
@@ -47,17 +46,17 @@ VoidResult print_schema(DatabaseAccess& db) {
 void print_all_keys(DatabaseAccess& db) {
     // coverity[+all]
     DEBUG("Printing all keys in the database:");
-    
+
     const char* query = "SELECT module_name, key_type_id, key_name, created_at, expires_at, is_active FROM module_keys";
-    
+
     auto stmt_result = db.prepare(query);
     if (stmt_result.is_err()) {
         ERROR("Failed to prepare statement for printing keys: {}", stmt_result.error().message());
         return;
     }
-    
+
     sqlite3_stmt* stmt = stmt_result.value();
-    
+
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char* module_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
         int key_type_id = sqlite3_column_int(stmt, 1);
@@ -67,19 +66,14 @@ void print_all_keys(DatabaseAccess& db) {
         int is_active = sqlite3_column_int(stmt, 5);
 
         DEBUG("Key: module_name='{}', key_type_id={}, key_name='{}', created_at='{}', expires_at='{}', is_active={}",
-              module_name ? module_name : "NULL",
-              key_type_id,
-              key_name ? key_name : "NULL",
-              created_at ? created_at : "NULL",
-              expires_at ? expires_at : "NULL",
-              is_active);
+              module_name ? module_name : "NULL", key_type_id, key_name ? key_name : "NULL",
+              created_at ? created_at : "NULL", expires_at ? expires_at : "NULL", is_active);
     }
-    
+
     sqlite3_finalize(stmt);
 
     // coverity[-all]
 }
-
 
 std::string time_point_to_string(const std::chrono::system_clock::time_point& tp) {
     auto t = std::chrono::system_clock::to_time_t(tp);
@@ -220,8 +214,8 @@ Result<std::vector<unsigned char>> get_key(DatabaseAccess& db, const std::string
         return Err<std::vector<unsigned char>>(ErrorCode::FAIL_GET_KEY, "Failed to bind key_name");
 
     sdbret_t key_result;
-    auto key_query_result = db.query(key_stmt_ptr, key_result);
-    if (key_query_result.is_err() || key_result.rows.empty()) {
+    if (auto key_query_result = db.query(key_stmt_ptr, key_result);
+        key_query_result.is_err() || key_result.rows.empty()) {
         return Err<std::vector<unsigned char>>(ErrorCode::KEY_NOT_FOUND, "Key not found");
     }
 

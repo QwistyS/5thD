@@ -10,14 +10,9 @@ include_directories(
 )
 
 
-if(MSVC)
-    set(LIB_EXTENSION ".dll")
-elseif(APPLE)
-    set(LIB_EXTENSION ".dylib")
-else()
-    set(LIB_EXTENSION ".so")
-endif()
+
 
 add_subdirectory(test_izmq)
 add_subdirectory(test_receiver)
 add_subdirectory(test_transmitter)
+add_subdirectory(test_proc)

@@ -29,6 +29,7 @@ class IContext {
 public:
     virtual ~IContext() = default;
     virtual void* get_context() = 0;
+    virtual bool close() = 0;
 };
 
 /**
@@ -47,20 +48,18 @@ public:
  */
 class ZMQWSocket : public ISocket {
 public:
-    virtual ~ZMQWSocket();
+    ~ZMQWSocket() override;
     ZMQWSocket(IContext* ctx, int socket_type)
-        : _context(ctx), _socket_type(socket_type), _socket(nullptr), _error(_drp) {
+        : _error(_drp), _context(ctx), _socket_type(socket_type) {
         _init();
     };
     void* get_socket() override;
 
-protected:
+private:
     ErrorHandler _error;
     DisasterRecoveryPlan _drp;
-
-private:
     IContext* _context;
-    void* _socket;
+    void* _socket = nullptr;
     int _socket_type;
 
     void _init();
@@ -74,17 +73,17 @@ private:
  */
 class ZMQWContext : public IContext {
 public:
-    virtual ~ZMQWContext();
-    ZMQWContext() : _context(nullptr), _error(_drp) { _init(); };
+    ~ZMQWContext() override;
+    ZMQWContext() : _error(_drp) { _init(); };
     void* get_context() override;
+    bool close() override;
 
-protected:
-    ErrorHandler _error;
-    DisasterRecoveryPlan _drp;
 
 private:
-    void* _context;
-    void _close();
+    ErrorHandler _error;
+    DisasterRecoveryPlan _drp;
+    void* _context = nullptr;
+    VoidResult _close();
     Result<void*> _create_context();
     void _init();
     bool _handle_context_create();

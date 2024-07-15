@@ -1,9 +1,10 @@
 #ifndef SQL_H
 #define SQL_H
 
-#define SQLITE_HAS_CODEC 1
-
+#include <string_view>
 #include <sodium.h>
+// Include the SQLite header with SQLITE_HAS_CODEC defined
+#define SQLITE_HAS_CODEC 1
 #include <sqlcipher/sqlite3.h>
 #include <memory>
 #include <string>
@@ -11,15 +12,13 @@
 
 #include "5thderror_handler.h"
 
-// in future will move to env variable
-
 #ifndef DB_PATH
-#define DB_PATH "/home/qwistys/src/5thD/bin/fithd.db"
+#    define DB_PATH "/home/qwistys/src/5thD/bin/fithd.db"
 #endif
 
 inline constexpr char MEANWHILE_DB_KEY[] = "It was meant to be but not meant to last";
 
-typedef struct SecureQueryResult {
+using sdbret_t = struct SecureQueryResult {
     struct Row {
         std::vector<std::pair<std::string, std::vector<unsigned char>>> columns;
     };
@@ -31,21 +30,20 @@ typedef struct SecureQueryResult {
     ~SecureQueryResult() { flush(); }
 
     void flush() {
-        for (auto& row : rows) {
-            for (auto& col : row.columns) {
-                sodium_memzero(col.second.data(), col.second.size());
+        for (auto const& row : rows) {
+            for (auto [first, second] : row.columns) {
+                sodium_memzero(second.data(), second.size());
             }
         }
         rows.clear();
         totalSize = 0;
     }
-
-} sdbret_t;
+};
 
 class DatabaseAccess {
 public:
-    DatabaseAccess(const std::string& path = DB_PATH, const std::string& encryption_key = MEANWHILE_DB_KEY)
-        : _db_path(path), _key(nullptr), _key_num_byte(0), _error(_drp), _db(nullptr) {
+    DatabaseAccess(const std::string_view path = DB_PATH, const std::string_view encryption_key = MEANWHILE_DB_KEY)
+        : _error(_drp), _db_path(path) {
         _init(path, encryption_key);
     }
     ~DatabaseAccess();
@@ -117,27 +115,25 @@ public:
 
     VoidResult verify_tables();
 
-protected:
+private:
     ErrorHandler _error;
     DisasterRecoveryPlan _drp;
-
-private:
-    sqlite3* _db;
+    sqlite3* _db = nullptr;
     std::string _db_path;
-    unsigned char* _key;
-    size_t _key_num_byte;
+    unsigned char* _key = nullptr;
+    size_t _key_num_byte = 0;
 
-    std::string _read_scheme_script(const std::string& sql_script_path);
-    void _init(const std::string& path, const std::string encryption_key);
+    std::string _read_scheme_script(const std::string& sql_script_path) const;
+    void _init(const std::string_view path, const std::string_view encryption_key);
 
     VoidResult _new_db();
 
     void _setup_drp();
-    bool _handle_open();
-    bool _handle_close();
-    bool _handle_exec();
-    bool _handle_add_scheme();
-    bool _handle_new_db();
+    bool _handle_open() const;
+    bool _handle_close() const;
+    bool _handle_exec() const;
+    bool _handle_add_scheme() const;
+    bool _handle_new_db() const;
 };
 
 #endif  // SQL_H
