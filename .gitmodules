@@ -19,3 +19,6 @@
 [submodule "third_parties/tracy"]
 	path = third_parties/tracy
 	url = https://github.com/wolfpld/tracy.git
+[submodule "third_parties/sqlcipher"]
+	path = third_parties/sqlcipher
+	url = https://github.com/sqlcipher/sqlcipher.git
