@@ -16,15 +16,6 @@
 [submodule "third_parties/curl"]
 	path = third_parties/curl
 	url = https://github.com/curl/curl.git
-[submodule "third_parties/imgui"]
-	path = third_parties/imgui
-	url = https://github.com/ocornut/imgui.git
-[submodule "third_parties/glfw"]
-	path = third_parties/glfw
-	url = https://github.com/glfw/glfw.git
-[submodule "third_parties/sqlcipher"]
-	path = third_parties/sqlcipher
-	url = https://github.com/sqlcipher/sqlcipher.git
 [submodule "third_parties/tracy"]
 	path = third_parties/tracy
 	url = https://github.com/wolfpld/tracy.git
