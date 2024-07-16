@@ -5,7 +5,6 @@
 #include "module.h"
 #include "software_bus.h"
 
-
 int main() {
     module_init_t config;
     memset(&config, 0, sizeof(module_init_t));
@@ -17,9 +16,10 @@ int main() {
 
     auto ctx = std::make_unique<ZMQWContext>();
     auto socket = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_ROUTER);
-    auto recv =
-        std::make_unique<ZMQWReceiver>(CLIENTS_IDS[static_cast<int>(config.client_id)], 0, ctx.get(), socket.get());
+
+    auto recv = std::make_unique<ZMQWReceiver>("", 0, socket.get());
     recv->set_endpoint(IPC_ENDPOINT);
+
     auto bus = std::make_unique<ZMQBus>(recv.get());
 
     signal(SIGINT, bus->signal_handler);
@@ -29,6 +29,8 @@ int main() {
     config.keys_info.deinit();
 
     bus->run();
+
+    recv->close();
 
     DEBUG("Clearing router...");
     return 0;

@@ -13,7 +13,7 @@ set(DB_PATH "${PROJECT_SOURCE_DIR}/bin/5thd.db" CACHE STRING "Path to the databa
 add_compile_definitions(DB_PATH="${DB_PATH}")
 
 # Set the output directory for all targets
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(THIRDP ${CMAKE_SOURCE_DIR}/third_parties)
 set(5thDlibs ${CMAKE_SOURCE_DIR}/bin)
 
@@ -22,9 +22,11 @@ include_directories(
     core/common
     core
     ${THIRDP}/libzmq/include
-    ${THIRDP}/sqlcipher/include
+    ${THIRDP}
     ${THIRDP}/spdlog/include
+    ${THIRDP}/tracy/public
 )
+message("PATH sqlcypher ${THIRDP}/sqlcipher")
 
 add_subdirectory(${THIRDP}/Unity)
 
@@ -63,10 +65,13 @@ add_library(sqlcipher SHARED IMPORTED)
 set_target_properties(sqlcipher PROPERTIES IMPORTED_LOCATION ${SQLCIPHER_LIB})
 
 message("ZMQ_LIB full path: ${ZMQ_LIB}")
-message("SPDLOG_LIB full path: ${SPDLOG_LIB}")
+message("SPDLOG_LIB full path: ${SPLOG_LIB}")
 message("SQLCIPHER_LIB full path: ${SQLCIPHER_LIB}")
 
-# Set the source files for your Qt application
+# Define TRACY_ENABLE for the entire project
+add_definitions(-DTRACY_ENABLE)
+
+# Set the source files for your application
 set(SOURCES main.cpp)
 
 # Add an executable target for the main application
@@ -75,12 +80,19 @@ add_executable(${PROJECT_NAME}
     ${CORE_SRC_FILES}
 )
 
+# Link Tracy client library if needed (optional, Tracy works as a header-only library)
+add_library(tracy STATIC IMPORTED)
+set_target_properties(tracy PROPERTIES
+  IMPORTED_LOCATION "${THIRDP}/tracy/build/libTracyClient.a"
+)
+
 # Link libraries and other dependencies to the main executable
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
     zmq
     sodium
     sqlcipher
+    tracy
 )
 
 if(APPLE)
@@ -95,3 +107,4 @@ endif()
 # add_subdirectory(5thD_Software_Bus)
 # add_subdirectory(5thD_Peer)
 add_subdirectory(5thD_Test)
+

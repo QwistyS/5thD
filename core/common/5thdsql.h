@@ -1,12 +1,11 @@
 #ifndef SQL_H
 #define SQL_H
 
-#include <string_view>
 #include <sodium.h>
+#include <string_view>
 // Include the SQLite header with SQLITE_HAS_CODEC defined
 #define SQLITE_HAS_CODEC 1
 #include <sqlcipher/sqlite3.h>
-#include <memory>
 #include <string>
 #include <vector>
 

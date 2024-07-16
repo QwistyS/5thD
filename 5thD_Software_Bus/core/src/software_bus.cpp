@@ -1,11 +1,6 @@
-#include <cstring>
-#include <functional>
-#include <unordered_map>
-
-#include "5thdipcmsg.h"
-#include "5thdlogger.h"
-#include "software_bus.h"
 #include "zmq.h"
+
+#include "software_bus.h"
 
 std::atomic<bool> ZMQBus::_poll(true);  // Initialize as true
 
