@@ -2,12 +2,12 @@
 #include <zmq.h>
 #include <chrono>
 #include <cstring>
-#include <memory>
 #include <thread>
 
-#include "5thderror_handler.h"
+#include "5thdipc_client.h"
 #include "5thdipcmsg.h"
 #include "5thdsql.h"
+#include "izmq.h"
 #include "keys_db.h"
 #include "module.h"
 #include "net_helpers.h"
@@ -26,12 +26,7 @@ void signal_handler(int signum) {
 
 static ipc_msg_t ipc_peer_msg;
 
-void ipc_msg(ipc_msg_t* msg, int src, int dist) {
-    memset(msg, 0, sizeof(ipc_msg_t));
-    msg->src_id = src;
-    msg->dist_id = dist;
-    msg->timestamp = time(nullptr);
-}
+
 
 int main() {
     module_init_t config;
@@ -44,7 +39,6 @@ int main() {
     // Set up signal handler
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
-
 
     std::string ipcpub_key;
 
@@ -61,8 +55,9 @@ int main() {
 
     // Start ipc
     auto ctx = std::make_unique<ZMQWContext>();
-    auto ipcsock = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_DEALER);
-    auto ipc_trans = std::make_unique<ZMQWTransmitter>(ipcsock.get(), CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
+    auto ipcsock = std::make_unique<ZMQWSocket<ZMQWContext>>(*ctx, ZMQ_DEALER);
+    auto ipc_trans = std::make_unique<ZMQWTransmitter<ZMQWSocket<ZMQWContext>>>(
+        *ipcsock, CLIENTS_IDS[static_cast<int>(Clients::PEER)]);
 
     int rc = ipc_trans->set_sockopt(ZMQ_CURVE_SERVERKEY, ipcpub_key.c_str(), 40);
     if (rc != 0) {
@@ -84,16 +79,16 @@ int main() {
     ipc_trans->set_sockopt(ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
     ipc_trans->set_sockopt(ZMQ_SNDTIMEO, &timeout_ms, sizeof(timeout_ms));
 
-    auto ipc_client = std::make_unique<IpcClient>(ipc_trans.get());
+    auto ipc_client = std::make_unique<IpcClient<ZMQWTransmitter<ZMQWSocket<ZMQWContext>>>>(*ipc_trans);
     // Register self id.
-    ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::ROUTER);
 
     print_ipc_msg(&ipc_peer_msg);
 
     while (termination_requested) {
         DEBUG("Sending data");
+        ipc_msg(&ipc_peer_msg, Clients::PEER, Clients::MANAGER);
         ipc_client->send(&ipc_peer_msg);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     return 0;

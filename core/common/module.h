@@ -3,6 +3,8 @@
 
 #include <memory>
 #include <vector>
+#include <memory>
+#include <vector>
 
 #include "5thderror_handler.h"
 #include "5thdipcmsg.h"
@@ -18,9 +20,6 @@ struct KeysInfo{
 };
 
 
-#include <memory>
-#include <vector>
-#include <iostream>
 
 // Deleter struct
 struct Deleter {

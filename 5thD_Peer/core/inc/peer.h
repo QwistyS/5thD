@@ -1,19 +1,19 @@
 #ifndef PEER_H
 #define PEER_H
 
-#include <unordered_set>
-#include <vector>
 #include "5thderror_handler.h"
-#include "5thdipc_client.h"
 #include "receiver.h"
 #include "transmitter.h"
 
 #define START_PORT 7099
 #define CACHE_SIZE 100
 
-class Peer {
+template <ITransmiterConcept Transmitter, IReceiverConcept Reciever>
+class Peer final {
 public:
-    Peer(std::string& address, int port) : _addr(address), _port(port), _error(_drp) { _init(); }
+    Peer(Transmitter& trancmitter, Reciever& receiver) : _error(_drp), _transmitter(trancmitter), _receiver(receiver) {
+        _init();
+    }
     ~Peer();
 
 protected:
@@ -21,11 +21,8 @@ protected:
     DisasterRecoveryPlan _drp;
 
 private:
-    std::string _addr;
-    int _port;
-    ZMQWContext _ctx;
-    ITransmitter* _transmitter;
-    IReceiver* _receiver;
+    Transmitter& _transmitter;
+    Reciever& _receiver;
     void _init();
 };
 

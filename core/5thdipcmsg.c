@@ -1,3 +1,5 @@
+#include <string.h>
+#include <time.h>
 #include "5thdipcmsg.h"
 
 #ifdef _WIN32
@@ -6,6 +8,12 @@ const char* IPC_ENDPOINT = "ipc://secure_ipc";
 const char* IPC_ENDPOINT = "ipc:///tmp/secure_ipc";
 #endif
 
+void ipc_msg(ipc_msg_t* msg, int src, int dist) {
+    memset(msg, 0, sizeof(ipc_msg_t));
+    msg->src_id = src;
+    msg->dist_id = dist;
+    msg->timestamp = time(NULL);
+}
 
 void print_ipc_msg(ipc_msg_t* msg) {
     printf("--- Frame ---\n");

@@ -41,6 +41,8 @@ typedef struct {
 #    error "Unsupported compiler/platform"
 #endif
 
+void ipc_msg(ipc_msg_t* msg, int src, int dist);
+
 void print_ipc_msg(ipc_msg_t* msg);
 
 #ifdef __cplusplus

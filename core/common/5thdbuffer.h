@@ -7,8 +7,6 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <optional>
-#include <stdexcept>
 #include "5thderror_handler.h"
 
 template <typename T, size_t Size>
@@ -94,6 +92,7 @@ template <typename T, size_t Size>
 inline ManagedBuffer<T, Size>::~ManagedBuffer() {
     for (size_t i = 0; i < _buffer.size(); ++i) {
         _user_data_deinit_callback(_buffer[i].data);
+        DEBUG("Cleaning resource {}", i);
     }
 }
 

@@ -5,7 +5,7 @@
 #include "unity.h"
 
 std::unique_ptr<ZMQWContext> context;
-std::unique_ptr<ZMQWSocket> socket;
+std::unique_ptr<ZMQWSocket<ZMQWContext>> trans_sock;
 int port = 0;
 std::string endpoint;
 
@@ -13,11 +13,11 @@ void setUp(void) {
     port = 3434;
     endpoint = "120.0.0.1";
     context = std::make_unique<ZMQWContext>();
-    socket = std::make_unique<ZMQWSocket>(context.get(), ZMQ_REP);
+    trans_sock = std::make_unique<ZMQWSocket<ZMQWContext>>(*context, ZMQ_REP);
 }
 
 void tearDown(void) {
-    socket.reset();
+    trans_sock.reset();
     context->close();
     context.reset();
 }
@@ -27,9 +27,8 @@ void test_ZMQWContext(void) {
 }
 
 void test_ZMQWSocket(void) {
-    TEST_ASSERT_NOT_NULL(socket->get_socket());
+    TEST_ASSERT_NOT_NULL(trans_sock->get_socket());
 }
-
 
 int main(void) {
     Log::init();

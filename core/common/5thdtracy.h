@@ -3,8 +3,6 @@
 
 #ifdef TRACY_ENABLE
 #    include <atomic>
-#    include <functional>
-#    include <iostream>
 #    include <tracy/Tracy.hpp>
 
 class TracyWrapper {

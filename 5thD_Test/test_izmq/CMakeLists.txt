@@ -4,7 +4,6 @@ project(test_ipzmq)
 
 file(GLOB TESTS_IZMQ
     "../../core/5thdlogger.cpp"
-    "../../core/izmq.cpp"
     "../../core/5thdipcmsg.c"
 )
 

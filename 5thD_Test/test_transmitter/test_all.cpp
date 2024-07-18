@@ -8,33 +8,40 @@
 #include "unity.h"
 
 std::unique_ptr<ZMQWContext> context;
-std::unique_ptr<ZMQWSocket> socket;
-std::unique_ptr<ZMQWSocket> srv_sock;
-std::unique_ptr<ZMQWTransmitter> trans;
-std::unique_ptr<ZMQWReceiver> srv;
+
+std::unique_ptr<ZMQWSocket<ZMQWContext>> trans_sock;
+std::unique_ptr<ZMQWSocket<ZMQWContext>> recv_sock;
+
+std::unique_ptr<ZMQWTransmitter<ZMQWSocket<ZMQWContext>>> trans;
+std::unique_ptr<ZMQWReceiver<ZMQWSocket<ZMQWContext>>> recv;
+
 int port;
 std::string endpoint;
 
 void setUp(void) {
     port = 3434;
     endpoint = "127.0.0.1";
+
     context = std::make_unique<ZMQWContext>();
-    srv_sock = std::make_unique<ZMQWSocket>(context.get(), ZMQ_REP);
-    socket = std::make_unique<ZMQWSocket>(context.get(), ZMQ_REQ);
-    trans = std::make_unique<ZMQWTransmitter>(socket.get(), "test_transmitter");
-    srv = std::make_unique<ZMQWReceiver>(endpoint, port, srv_sock.get());
-    srv->listen();
+
+    recv_sock = std::make_unique<ZMQWSocket<ZMQWContext>>(*context, ZMQ_REP);
+    trans_sock = std::make_unique<ZMQWSocket<ZMQWContext>>(*context, ZMQ_REQ);
+
+    trans = std::make_unique<ZMQWTransmitter<ZMQWSocket<ZMQWContext>>>(*trans_sock, "test_transmitter");
+    recv = std::make_unique<ZMQWReceiver<ZMQWSocket<ZMQWContext>>>(endpoint, port, *recv_sock);
+
+    recv->listen();
 }
 
 void tearDown(void) {
     // clang-format off
     trans->disconnect(endpoint, port);   // Disconnect
-    socket.reset();     // Reset socket
+    trans_sock.reset();     // Reset socket
     trans.reset();      // Ensure transmitter close first
 
-    srv->close();       // Unbind
-    srv_sock.reset();   // Reset the socket before closing the context
-    srv.reset();        // Ensure receiver is properly closed first
+    recv->close();       // Unbind
+    recv_sock.reset();   // Reset the socket before closing the context
+    recv.reset();        // Ensure receiver is properly closed first
 
     context->close();   // Close the context
     context.reset();    // Reset the context
@@ -52,7 +59,7 @@ void test_ZMQWTransmitter_send(void) {
     std::atomic<bool> until = true;
 
     // Create and start the worker thread
-    auto t = std::thread(&ZMQWReceiver::worker, srv.get(), &until, nullptr);
+    auto t = std::thread(&ZMQWReceiver<ZMQWSocket<ZMQWContext>>::worker, recv.get(), &until, nullptr);
 
     // Send the message
     auto ret = trans->send(reinterpret_cast<const std::byte*>(&data), sizeof(data));
@@ -67,7 +74,6 @@ void test_ZMQWTransmitter_send(void) {
         t.join();
     }
 }
-
 
 int main(void) {
     Log::init();

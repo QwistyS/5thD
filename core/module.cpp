@@ -20,6 +20,7 @@ bool KeysInfo::init() {
                     free_smem(curve_pub, 41);
                     free_smem(curve_prv, 41);
                 }
+                is_ready = true;
                 ret = true;
             }
             break;
@@ -30,6 +31,9 @@ bool KeysInfo::init() {
 }
 
 void KeysInfo::deinit() {
+    if (!is_ready) {
+        return;
+    }
     switch (KeysInfo::key_type) {
         case KeyType::CURVE25519:
             free_smem(curve_pub, 41);
@@ -39,6 +43,7 @@ void KeysInfo::deinit() {
         default:
             break;
     }
+    is_ready = false;
 }
 
 inline bool _get_zmq_curve_keys(DatabaseAccess& db, char* pub, char* prv, Clients id) {

@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(5thD)
 
-set(CMAKE_CXX_STANDARD 17)
+# Set the C++ standard to C++20
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 # support clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+
 add_compile_definitions(BIN_PATH="${CMAKE_SOURCE_DIR}/bin/")
 
 set(DB_PATH "${PROJECT_SOURCE_DIR}/bin/5thd.db" CACHE STRING "Path to the database file")
@@ -26,17 +29,15 @@ include_directories(
     ${THIRDP}/spdlog/include
     ${THIRDP}/tracy/public
 )
-message("PATH sqlcypher ${THIRDP}/sqlcipher")
+
 
 add_subdirectory(${THIRDP}/Unity)
 
 file(GLOB CORE_SRC_FILES
-    core/receiver.cpp
     core/izmq.cpp
     core/5thdlogger.cpp
     core/5thdsql.cpp
     core/keys_db.cpp
-    core/transmitter.cpp
     core/5thdipc_client.cpp
     core/module.cpp
     core/5thdallocator.cpp
@@ -65,11 +66,11 @@ add_library(sqlcipher SHARED IMPORTED)
 set_target_properties(sqlcipher PROPERTIES IMPORTED_LOCATION ${SQLCIPHER_LIB})
 
 message("ZMQ_LIB full path: ${ZMQ_LIB}")
-message("SPDLOG_LIB full path: ${SPLOG_LIB}")
+message("SPDLOG_LIB full path: ${SPDLOG_LIB}")
 message("SQLCIPHER_LIB full path: ${SQLCIPHER_LIB}")
 
 # Define TRACY_ENABLE for the entire project
-add_definitions(-DTRACY_ENABLE)
+# add_definitions(-DTRACY_ENABLE)
 
 # Set the source files for your application
 set(SOURCES main.cpp)
@@ -104,7 +105,6 @@ if(APPLE)
     )
 endif()
 
-# add_subdirectory(5thD_Software_Bus)
-# add_subdirectory(5thD_Peer)
+add_subdirectory(5thD_Software_Bus)
+add_subdirectory(5thD_Peer)
 add_subdirectory(5thD_Test)
-

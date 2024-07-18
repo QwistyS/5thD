@@ -1,4 +1,5 @@
 #include <sodium.h>
+#include <cstddef>
 #include <mutex>
 
 #include "5thdallocator.h"
@@ -12,7 +13,11 @@ void* allocate_smem(size_t num_bytes) {
         WARN("Sodium init error");
         return nullptr;
     }
-    return sodium_malloc(num_bytes);
+    
+    void* ptr = sodium_malloc(num_bytes);
+
+    memset(ptr, 0xAA, num_bytes);
+    return ptr;
 }
 
 void free_smem(void* pdata, size_t num_bytes) {

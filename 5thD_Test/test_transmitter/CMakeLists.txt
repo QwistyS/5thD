@@ -5,8 +5,6 @@ file(GLOB TESTS_TRANSMITTER
     "../../core/5thdlogger.cpp"
     "../../core/izmq.cpp"
     "../../core/5thdipcmsg.c"
-    "../../core/transmitter.cpp"
-    "../../core/receiver.cpp"
 )
 
 

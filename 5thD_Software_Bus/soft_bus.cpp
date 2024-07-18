@@ -1,9 +1,9 @@
-#include <zmq.h>
-#include <memory>
 
+#include "izmq.h"
+#include "receiver.h"
+#include "software_bus.h"
 #include "keys_db.h"
 #include "module.h"
-#include "software_bus.h"
 
 int main() {
     module_init_t config;
@@ -15,20 +15,20 @@ int main() {
     module_init(&config);
 
     auto ctx = std::make_unique<ZMQWContext>();
-    auto socket = std::make_unique<ZMQWSocket>(ctx.get(), ZMQ_ROUTER);
+    auto socket = std::make_unique<ZMQWSocket<ZMQWContext>>(*ctx, ZMQ_ROUTER);
 
-    auto recv = std::make_unique<ZMQWReceiver>("", 0, socket.get());
+    auto recv = std::make_unique<ZMQWReceiver<ZMQWSocket<ZMQWContext>>>("", 0, *socket);
     recv->set_endpoint(IPC_ENDPOINT);
 
-    auto bus = std::make_unique<ZMQBus>(recv.get());
+    ZMQBus<ZMQWReceiver<ZMQWSocket<ZMQWContext>>> bus(*recv);
+    
+    signal(SIGINT, bus.signal_handler);
+    signal(SIGTERM, bus.signal_handler);
 
-    signal(SIGINT, bus->signal_handler);
-    signal(SIGTERM, bus->signal_handler);
-
-    bus->set_security(config.keys_info.curve_pub, config.keys_info.curve_prv);
+    bus.set_security(config.keys_info.curve_pub, config.keys_info.curve_prv);
     config.keys_info.deinit();
 
-    bus->run();
+    bus.run();
 
     recv->close();
 
