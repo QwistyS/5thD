@@ -3,9 +3,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <functional>
-#include <iostream>
 #include <map>
-#include <stdexcept>
 
 #include "5thdlogger.h"
 #include "iproc_manager.h"
@@ -17,7 +15,8 @@ public:
     VoidResult start_proc(const std::string& name, const std::string& command) override {
         if (pid_t pid = fork(); pid == 0) {
             // Child process
-            execl("/bin/sh", "sh", "-c", command.c_str(), (char*) nullptr);
+            execlp(name.c_str(), name.c_str(), command.c_str(), (char*) nullptr);
+
             exit(1);
         } else if (pid > 0) {
             // Parent process

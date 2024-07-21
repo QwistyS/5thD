@@ -91,5 +91,9 @@ int main() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
+    ipc_trans.reset();
+    ipcsock.reset();
+    ctx->close();
+    ctx.reset();
     return 0;
 }

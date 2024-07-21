@@ -12,6 +12,7 @@
 #include "5thdipcmsg.h"
 #include "izmq.h"
 #include "tracy/Tracy.hpp"
+#include "qwistys_macro.h"
 
 #define DEFAULT_DATA_CHUNK sizeof(ipc_msg_t)
 
@@ -295,7 +296,9 @@ VoidResult ZMQWTransmitter<Socket>::_send(const std::byte* data, size_t num_byte
             zmq_msg_close(&all_msg->msg);
             return Err(ErrorCode::FAIL_SEND_FRAME, "Failed to send chunk of data");
         }
-        zmq_msg_close(&all_msg->msg);
+        
+        QWISTYS_TODO_MSG("Need to check how to manage the buffer of zmq messages :/")
+        /*zmq_msg_close(&all_msg->msg);*/
 
         data += min;
         num_bytes -= min;

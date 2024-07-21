@@ -33,5 +33,13 @@ int main() {
     recv->close();
 
     DEBUG("Clearing router...");
+    
+    recv->close();
+    socket.reset();
+    ctx->close();
+
+    ctx.reset();
+
+
     return 0;
 }

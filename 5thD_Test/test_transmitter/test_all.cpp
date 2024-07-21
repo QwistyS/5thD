@@ -66,7 +66,7 @@ void test_ZMQWTransmitter_send(void) {
     TEST_ASSERT(ret);
 
     // Allow some time for the message to be processed
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     // Signal the worker thread to stop and join the thread
     until = false;

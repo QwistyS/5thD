@@ -2,13 +2,15 @@ cmake_minimum_required(VERSION 3.20)
 project(5thD)
 
 # Set the C++ standard to C++20
+# Specify the C and C++ compilers
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 # support clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+# Need at release build
+# set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
 add_compile_definitions(BIN_PATH="${CMAKE_SOURCE_DIR}/bin/")
 

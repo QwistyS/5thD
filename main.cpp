@@ -3,10 +3,20 @@
 #include <cstring>
 #include <memory>
 #include "5thdipcmsg.h"
+#include "5thdlogger.h"
 #include "izmq.h"
 #include "keys_db.h"
 #include "module.h"
+#include "iproc_manager.h"
 #include "zmq.h"
+
+#ifdef USE_EXPERIMENTAL_FILESYSTEM
+#    include <experimental/filesystem>
+#else
+#    include <filesystem>
+#endif
+
+
 
 #ifdef _WIN32
 #    include "proc_win.h"
@@ -22,7 +32,6 @@
 #include "5thdipcmsg.h"
 #include "5thdtracy.h"
 #include "module.h"
-#include "transmitter.h"
 
 void foo() {
     TELEMETRY("foo")
@@ -41,6 +50,7 @@ int main() {
     std::string ipcpub_key;
     ipc_msg_t ipc_msg_manager;
 
+    auto procm = create_proc_manager();
     module_init(&config);
 
     // // Set up signal handler
@@ -108,18 +118,40 @@ int main() {
     //     }
     // });
 
+
+    std::string software_bus(BIN_PATH"5thDSoftwareBus");
+    std::string peer(BIN_PATH"5thDPeer");
+
+    if (bool is_exit = std::filesystem::exists(software_bus); is_exit == false) {
+        ERROR("File {} not exit", software_bus);
+        exit(-1);
+    }
+
+    if (bool is_exit = std::filesystem::exists(peer); is_exit == false) {
+        ERROR("File {} not exit", peer);
+        exit(-1);
+    }
+
+    if (auto peer_pid = procm->start_proc(peer, ""); peer_pid.is_err()) {
+      ERROR("Fail to init Peer");
+      exit(-1);
+    }
+    if (auto swb_pid = procm->start_proc(software_bus, ""); swb_pid.is_err()) {
+      ERROR("Fail to init Software Bus");
+      exit(-1);
+    }
     // Main workload
     while (runControlThread) {
         TELEMETRY("Main Workload")
-        foo();
-        bar();
-
         ipc_msg(&ipc_msg_manager, Clients::MANAGER, Clients::PEER);
         ipc_client->send(&ipc_msg_manager);
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
+    procm->stop_proc(peer);
+    procm->stop_proc(software_bus);
     // Clean up control thread
+    //
     // if (controlThread.joinable()) {
     //     controlThread.join();
     // }
