@@ -1,5 +1,3 @@
-
-#include "izmq.h"
 #include "receiver.h"
 #include "software_bus.h"
 #include "keys_db.h"

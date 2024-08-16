@@ -35,6 +35,7 @@ private:
     ManagedBuffer<ZMQAllMsg, 10> _msg_buffer = ManagedBuffer<ZMQAllMsg, 10>(init_allmsg, deinit_allmsg);
     void _init();
     void _handle_msg(void* sock);
+    VoidResult _cache_client(int src, int dist);
     VoidResult _send_message(void* sock, const ipc_msg_t* msg, const std::string& identity);
 };
 
@@ -128,22 +129,26 @@ void ZMQBus<IReceiver>::_handle_msg(void* sock) {
     DEBUG("Received from id: {}", src_id);
     print_ipc_msg(&data);
 
-    {
-        std::scoped_lock<std::mutex> lock(_clients_mutex);
-        if (auto it_src = _clients.find(data.src_id); it_src == _clients.end()) {
-            _clients[data.src_id] = src_id;
-        }
-
-        auto it_dst = _clients.find(data.dist_id);
-        if (it_dst == _clients.end()) {
-            WARN("The destination: {} never registered", CLIENTS_IDS[data.dist_id]);
-            return;
-        }
-        if (auto send_ret = _send_message(sock, &data, it_dst->second); send_ret.is_err()) {
+    if (auto dist_registered = _cache_client(data.src_id, data.dist_id); dist_registered.is_ok()) {
+        if (auto send_ret = _send_message(sock, &data, _clients[data.dist_id]); send_ret.is_err()) {
             WARN("Fait send message Error {}", send_ret.error().message());
             _error.handle_error(send_ret.error());
-        }
+        }        
     }
+}
+
+template<IReceiverConcept IReceiver>
+VoidResult ZMQBus<IReceiver>::_cache_client(int src, int dist) {
+    std::scoped_lock<std::mutex> lock(_clients_mutex);
+    if (auto it_src = _clients.find(src); it_src == _clients.end()) {
+        _clients[src] = CLIENTS_IDS[src];
+    }
+
+    if (auto it_dist = _clients.find(dist); it_dist == _clients.end()) {
+        return Err(ErrorCode::NO_OBJECT, "The distanation never registered");
+    }
+    return Ok();
+   
 }
 
 template <IReceiverConcept IReceiver>
