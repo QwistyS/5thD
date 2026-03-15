@@ -1,18 +1,23 @@
-# 5thD Application
+# 5thD
 
-5thD is a decentralized communication platform designed to provide users with secure and private communication channels without government or corporate surveillance. It leverages a hybrid peer-to-peer (P2P) network architecture and advanced encryption techniques to ensure the confidentiality and integrity of user data.
+5thD is a sovereign personal edge node: a home-hosted backend paired to a user's phone that gives the user ownership of data, services, and policy. The phone acts as the HUD and control plane. The node runs the real backend runtime and exposes modular features such as chat, store, bids, streams, and future user-defined services.
+
+The project target is not a single-purpose chat server. It is a modular decentralized runtime with a strong security and telemetry plane.
 
 ## Features
 
-- **Decentralized Communication:** 5thD operates on a decentralized network, eliminating single points of failure and enhancing resilience against censorship and surveillance.
+- **User-owned backend:** the node runs in the user's environment and keeps the user in control of data and feature exposure.
+- **Phone HUD:** the phone is the control surface for health, policy, alerts, and module management.
+- **Modular feature runtime:** user-facing capabilities such as chat, store, and streams are modules, not core runtime code.
+- **Decentralized networking:** peer transport and routing are built around decentralized communication rather than a central service.
+- **Security-first operation:** identity, policy, capability checks, audit, and anomaly detection are first-class concerns.
+- **Heavy telemetry:** metrics, traces, audit events, and hostile-traffic signals are part of the platform design.
 
-- **Hybrid P2P Network:** The application utilizes a hybrid P2P network architecture, combining the benefits of both structured and unstructured networks to optimize performance and scalability.
+## Architecture Docs
 
-- **End-to-End Encryption:** All communications on 5thD are encrypted end-to-end, ensuring that only the intended recipients can access the contents of the messages.
-
-- **Anonymous Messaging:** Users have the option to send messages anonymously, further protecting their privacy and anonymity.
-
-- **Cross-Platform Compatibility:** 5thD is designed to run on multiple platforms, including desktop and mobile devices, allowing users to stay connected across different devices.
+- [Target Architecture](docs/architecture.md)
+- [Module Contract](docs/module_contract.md)
+- [Telemetry and Security Event Schema](docs/telemetry.md)
 
 ## Getting Started
 

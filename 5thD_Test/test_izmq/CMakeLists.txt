@@ -3,15 +3,6 @@ project(5thDIzmqTests)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Set the path for the library files
-set(ZMQ_LIB ${5thDlibs}/libzmq${LIB_EXTENSION})
-message("ZMQ_LIB full path: ${ZMQ_LIB}")
-
-add_library(zmq SHARED IMPORTED)
-set_target_properties(zmq PROPERTIES IMPORTED_LOCATION ${ZMQ_LIB})
-
-
 file(GLOB TESTS_IZMQ
     "../../core/5thdlogger.cpp"
     "../../core/izmq.cpp"
@@ -26,5 +17,5 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
     spdlog::spdlog 
     unity
-    zmq
+    fifthd_zmq
 )
